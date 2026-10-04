@@ -22,7 +22,7 @@ struct ThumbnailGridView: View {
                         )
                         .id(photo.id)
                         .draggable(photo.url) {
-                            CachedThumbnail(url: photo.url)
+                            CachedThumbnail(url: photo.url, version: photo.fileModificationDate)
                                 .frame(width: 90, height: 64)
                                 .clipShape(RoundedRectangle(cornerRadius: 5))
                         }

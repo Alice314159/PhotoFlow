@@ -13,10 +13,32 @@ final class ThumbnailCache: @unchecked Sendable {
         cache.totalCostLimit = 512 * 1024 * 1024
     }
 
-    func image(for url: URL, maxPixelSize: Int = ThumbnailCache.gridSize) -> NSImage? {
-        let key = Self.key(url, maxPixelSize)
+    private let lock = NSLock()
+    private var inFlight: [NSString: DispatchGroup] = [:]
+
+    /// `version` is the file's modification date, so an image edited elsewhere gets a fresh thumbnail.
+    /// Concurrent requests for the same image share one decode.
+    func image(for url: URL, version: Date? = nil, maxPixelSize: Int = ThumbnailCache.gridSize) -> NSImage? {
+        let key = Self.key(url, maxPixelSize, version)
         if let cached = cache.object(forKey: key) {
             return cached
+        }
+
+        lock.lock()
+        if let running = inFlight[key] {
+            lock.unlock()
+            running.wait()
+            return cache.object(forKey: key)
+        }
+        let group = DispatchGroup()
+        group.enter()
+        inFlight[key] = group
+        lock.unlock()
+        defer {
+            lock.lock()
+            inFlight[key] = nil
+            lock.unlock()
+            group.leave()
         }
 
         guard let (image, cost) = generate(from: url, maxPixelSize: maxPixelSize) else { return nil }
@@ -25,12 +47,12 @@ final class ThumbnailCache: @unchecked Sendable {
     }
 
     /// Returns an already-decoded image without doing any I/O.
-    func cachedImage(for url: URL, maxPixelSize: Int) -> NSImage? {
-        cache.object(forKey: Self.key(url, maxPixelSize))
+    func cachedImage(for url: URL, version: Date? = nil, maxPixelSize: Int) -> NSImage? {
+        cache.object(forKey: Self.key(url, maxPixelSize, version))
     }
 
-    private static func key(_ url: URL, _ size: Int) -> NSString {
-        "\(url.path)|\(size)" as NSString
+    private static func key(_ url: URL, _ size: Int, _ version: Date?) -> NSString {
+        "\(url.path)|\(size)|\(version?.timeIntervalSince1970 ?? 0)" as NSString
     }
 
     private func generate(from url: URL, maxPixelSize: Int) -> (NSImage, Int)? {

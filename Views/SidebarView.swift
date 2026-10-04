@@ -215,9 +215,7 @@ struct SidebarView: View {
             if library.isAnalyzing {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text(tr("Analyzing %@ / %@", library.analysisDone, library.analysisTotal))
-                            .font(.caption)
-                            .monospacedDigit()
+                        ProgressCount(progress: library.progress, key: "Analyzing %@ / %@", done: \.analysisDone, total: library.analysisTotal)
                         Spacer()
                         Button {
                             library.cancelAnalysis()
@@ -227,8 +225,7 @@ struct SidebarView: View {
                         .buttonStyle(.borderless)
                         .help(tr("Stop analyzing"))
                     }
-                    ProgressView(value: Double(library.analysisDone), total: Double(max(library.analysisTotal, 1)))
-                        .controlSize(.small)
+                    ProgressBar(progress: library.progress, done: \.analysisDone, total: library.analysisTotal)
                 }
             } else if !library.photos.isEmpty, library.categoryCounts.isEmpty, !library.isLoading {
                 Button {
@@ -318,9 +315,7 @@ struct SidebarView: View {
                 if library.isLookingUpPlaces {
                     HStack {
                         ProgressView().controlSize(.mini)
-                        Text(tr("Naming places %@ / %@", library.placeLookupDone, library.placeLookupTotal))
-                            .font(.caption)
-                            .monospacedDigit()
+                        ProgressCount(progress: library.progress, key: "Naming places %@ / %@", done: \.placeLookupDone, total: library.placeLookupTotal)
                     }
                 }
                 let limit = showAllPlaces.wrappedValue ? Int.max : Self.placeLimit
@@ -410,5 +405,30 @@ struct SidebarView: View {
         case .color(let label): "\(library.colorCount(label))"
         case .pick(let status): "\(library.markCounts.picks[status] ?? 0)"
         }
+    }
+}
+
+/// Reads the fast-changing counter itself, so ticking progress doesn't redraw the sidebar.
+private struct ProgressCount: View {
+    @ObservedObject var progress: BackgroundProgress
+    let key: String
+    let done: KeyPath<BackgroundProgress, Int>
+    let total: Int
+
+    var body: some View {
+        Text(tr(key, progress[keyPath: done], total))
+            .font(.caption)
+            .monospacedDigit()
+    }
+}
+
+private struct ProgressBar: View {
+    @ObservedObject var progress: BackgroundProgress
+    let done: KeyPath<BackgroundProgress, Int>
+    let total: Int
+
+    var body: some View {
+        ProgressView(value: Double(progress[keyPath: done]), total: Double(max(total, 1)))
+            .controlSize(.small)
     }
 }

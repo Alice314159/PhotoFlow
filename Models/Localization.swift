@@ -19,12 +19,20 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 }
 
 enum L10n {
-    nonisolated(unsafe) static var language: AppLanguage = {
-        let stored = UserDefaults.standard.string(forKey: "appLanguage")
-        return stored.flatMap(AppLanguage.init(rawValue:)) ?? .system
-    }() {
-        didSet { applyToSystemMenus() }
+    /// Read from background tasks too (progress text), so access goes through a lock.
+    static var language: AppLanguage {
+        get { lock.withLock { storedLanguage } }
+        set {
+            lock.withLock { storedLanguage = newValue }
+            applyToSystemMenus()
+        }
     }
+
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var storedLanguage: AppLanguage = {
+        let stored = UserDefaults.standard.string(forKey: Preferences.Key.language)
+        return stored.flatMap(AppLanguage.init(rawValue:)) ?? .system
+    }()
 
     static var isChinese: Bool {
         switch language {
@@ -48,9 +56,9 @@ enum L10n {
     /// Items AppKit adds itself (Edit, Window, Services…) follow `AppleLanguages`, read at launch.
     private static func applyToSystemMenus() {
         switch language {
-        case .system: UserDefaults.standard.removeObject(forKey: "AppleLanguages")
-        case .english: UserDefaults.standard.set(["en"], forKey: "AppleLanguages")
-        case .chinese: UserDefaults.standard.set(["zh-Hans"], forKey: "AppleLanguages")
+        case .system: UserDefaults.standard.removeObject(forKey: Preferences.Key.appleLanguages)
+        case .english: UserDefaults.standard.set(["en"], forKey: Preferences.Key.appleLanguages)
+        case .chinese: UserDefaults.standard.set(["zh-Hans"], forKey: Preferences.Key.appleLanguages)
         }
     }
 }

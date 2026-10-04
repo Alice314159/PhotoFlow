@@ -101,7 +101,7 @@ struct ImageViewerView: View {
     // MARK: - Image
 
     private func loupe(_ photo: PhotoItem) -> some View {
-        CachedThumbnail(url: photo.url, maxPixelSize: ThumbnailCache.loupeSize, fill: false, showsBackdrop: false)
+        CachedThumbnail(url: photo.url, version: photo.fileModificationDate, maxPixelSize: ThumbnailCache.loupeSize, fill: false, showsBackdrop: false)
             .padding(16)
             .scaleEffect(scale.wrappedValue)
             .offset(offset.wrappedValue)

@@ -6,7 +6,6 @@ DIST="$ROOT/dist"
 APP="$DIST/PhotoFlow.app"
 MACOS="$APP/Contents/MacOS"
 RES="$APP/Contents/Resources"
-SDK="$(xcrun --show-sdk-path)"
 
 rm -rf "$DIST"
 mkdir -p "$MACOS" "$RES"
@@ -65,23 +64,9 @@ cp "$ROOT/Resources/AppIcon.icns" "$RES/AppIcon.icns"
 mkdir -p "$RES/en.lproj" "$RES/zh-Hans.lproj"
 
 echo "Compiling PhotoFlow…"
-xcrun swiftc -parse-as-library \
-  -O \
-  -sdk "$SDK" \
-  -target arm64-apple-macos14.0 \
-  -framework SwiftUI \
-  -framework AppKit \
-  -framework Combine \
-  -framework ImageIO \
-  -framework Vision \
-  -framework CoreLocation \
-  -lsqlite3 \
-  "$ROOT/PhotoFlowApp.swift" \
-  "$ROOT"/Models/*.swift \
-  "$ROOT"/Services/*.swift \
-  "$ROOT"/ViewModels/*.swift \
-  "$ROOT"/Views/*.swift \
-  -o "$MACOS/PhotoFlow"
+# Package.swift is the only list of sources and frameworks; build for this Mac's architecture.
+swift build --package-path "$ROOT" -c release
+cp "$(swift build --package-path "$ROOT" -c release --show-bin-path)/PhotoFlow" "$MACOS/PhotoFlow"
 
 codesign --force --deep --sign - "$APP" >/dev/null
 echo "Built $APP"

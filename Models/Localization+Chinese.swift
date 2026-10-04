@@ -383,7 +383,6 @@ extension L10n {
         "Show Target Collection": "显示目标收藏",
         "Show all %@": "显示全部 %@ 个",
         "Show all %@ brands": "显示全部 %@ 个品牌",
-        "Show all %@ groups": "显示全部 %@ 个分组",
         "Show all %@ lenses": "显示全部 %@ 个镜头",
         "Show all photos in this group": "显示此分组的所有照片",
         "Show fewer": "收起",
