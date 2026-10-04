@@ -1,6 +1,20 @@
 #!/bin/zsh
 set -euo pipefail
 
+# Finder uses this for the disk image file and the mounted volume.
+stamp_icon() {
+  ICON="$ICON" TARGET="$TARGET" swift -e '
+import AppKit
+let env = ProcessInfo.processInfo.environment
+guard let image = NSImage(contentsOfFile: env["ICON"] ?? "") else {
+  fputs("missing icon\n", stderr)
+  exit(1)
+}
+let ok = NSWorkspace.shared.setIcon(image, forFile: env["TARGET"] ?? "", options: [])
+if !ok { exit(1) }
+'
+}
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="$ROOT/dist"
 APP="$DIST/PhotoFlow.app"
@@ -22,8 +36,6 @@ cat > "$APP/Contents/Info.plist" << 'PLIST'
 	<key>CFBundleExecutable</key>
 	<string>PhotoFlow</string>
 	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
-	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.photoflow.app</string>
@@ -70,3 +82,21 @@ cp "$(swift build --package-path "$ROOT" -c release --show-bin-path)/PhotoFlow" 
 
 codesign --force --deep --sign - "$APP" >/dev/null
 echo "Built $APP"
+
+DMG="$DIST/PhotoFlow.dmg"
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+STAGE="$WORK/stage"
+mkdir -p "$STAGE"
+ditto "$APP" "$STAGE/PhotoFlow.app"
+ln -s /Applications "$STAGE/Applications"
+
+# A writable image so the mounted volume can carry the app icon, then compress it.
+RW="$WORK/PhotoFlow-rw.dmg"
+hdiutil create -volname "PhotoFlow" -srcfolder "$STAGE" -ov -format UDRW "$RW" >/dev/null
+MOUNT="$(hdiutil attach -readwrite -noverify -noautoopen "$RW" | sed -n 's/.*\(\/Volumes\/.*\)/\1/p' | tail -1)"
+ICON="$RES/AppIcon.icns" TARGET="$MOUNT" stamp_icon
+hdiutil detach "$MOUNT" >/dev/null
+hdiutil convert "$RW" -format UDZO -ov -o "$DMG" >/dev/null
+ICON="$RES/AppIcon.icns" TARGET="$DMG" stamp_icon
+echo "Built $DMG"

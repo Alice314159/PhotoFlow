@@ -79,7 +79,7 @@ filename  ★★★★☆  🟢   ISO 400  1/500  f/2.8
 `Package.swift` is the only build definition (macOS 14+, Swift 5.10+). Command Line Tools are enough.
 
 ```
-./scripts/package.sh      # release build → dist/PhotoFlow.app (signed ad hoc)
+./scripts/package.sh      # release build → dist/PhotoFlow.app and dist/PhotoFlow.dmg
 swift test                # Swift Testing: search, filters, exposure parsing, translations
 ```
 
