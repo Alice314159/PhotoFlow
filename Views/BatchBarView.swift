@@ -46,56 +46,14 @@ struct BatchBarView: View {
                 }
             }
 
-            HStack(spacing: 2) {
-                pickButton(.picked, tr("P"))
-                pickButton(.rejected, tr("X"))
-                pickButton(.none, tr("U"))
-            }
+            PickButtons(current: sharedPick(photos), appliesToSelection: true) { library.setPick($0) }
 
             Spacer(minLength: 8)
 
-            HStack(spacing: 6) {
-                Menu {
-                    Button(tr("Copy Files (⌘C)")) { library.copyBatchToPasteboard() }
-                    Button(tr("Copy to Folder…")) { library.copyBatchToFolder() }
-                } label: {
-                    Label(tr("Copy"), systemImage: "doc.on.doc")
-                }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
-                .help(tr("Copy original files (never modified)"))
-
-                Menu {
-                    Button(tr("Originals (%@)", ByteCount.string(library.batchByteCount))) { library.emailBatch(resized: false) }
-                    Button(tr("Smaller for Mail (JPEG, 2048 px)")) { library.emailBatch(resized: true) }
-                } label: {
-                    Label(tr("Email"), systemImage: "envelope")
-                }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
-
-                ShareLink(items: photos.map(\.url)) {
-                    Label(tr("Share"), systemImage: "square.and.arrow.up")
-                }
-
-                Button {
-                    library.openExportSheet()
-                } label: {
-                    Label(tr("Export"), systemImage: "square.and.arrow.up.on.square")
-                }
-                .buttonStyle(.borderedProminent)
-
-                Menu {
-                    PhotoActionsMenu(library: library)
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .help(tr("More: Save As, Rename, Open With, Copy Paths…"))
+            ViewThatFits(in: .horizontal) {
+                actions(photos, labeled: true)
+                actions(photos, labeled: false)
             }
-            .controlSize(.small)
 
             Button {
                 library.clearChecked()
@@ -116,19 +74,67 @@ struct BatchBarView: View {
         return first
     }
 
-    private func pickButton(_ status: PickStatus, _ key: String) -> some View {
-        let photos = library.batchPhotos
-        let active = !photos.isEmpty && photos.allSatisfy { $0.pickStatus == status }
-        return Button {
-            library.setPick(status)
-        } label: {
-            Image(systemName: status == .none ? "flag.slash" : status.systemImage)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(active && status != .none ? status.tint : Color.secondary)
-                .frame(width: 22, height: 20)
-                .background(active ? Color.primary.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 4))
+    /// Copy, Email, Share, Export, and More; icon-only when the window is narrow.
+    private func actions(_ photos: [PhotoItem], labeled: Bool) -> some View {
+        HStack(spacing: 6) {
+            Menu {
+                Button(tr("Copy Files (⌘C)")) { library.copyBatchToPasteboard() }
+                Button(tr("Copy to Folder…")) { library.copyBatchToFolder() }
+            } label: {
+                label(tr("Copy"), "doc.on.doc", labeled)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help(tr("Copy original files (never modified)"))
+
+            Menu {
+                Button(tr("Originals (%@)", ByteCount.string(library.batchByteCount))) { library.emailBatch(resized: false) }
+                Button(tr("Smaller for Mail (JPEG, 2048 px)")) { library.emailBatch(resized: true) }
+            } label: {
+                label(tr("Email"), "envelope", labeled)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help(tr("Email"))
+
+            ShareLink(items: photos.map(\.url)) {
+                label(tr("Share"), "square.and.arrow.up", labeled)
+            }
+            .help(tr("Share"))
+
+            Button {
+                library.openExportSheet()
+            } label: {
+                label(tr("Export"), "square.and.arrow.up.on.square", labeled)
+            }
+            .buttonStyle(.borderedProminent)
+            .help(tr("Export Selected… (⇧⌘E)"))
+
+            Menu {
+                PhotoActionsMenu(library: library)
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help(tr("More: Save As, Rename, Open With, Copy Paths…"))
         }
-        .buttonStyle(.plain)
-        .help(tr("%@ all selected (%@)", status.title, key))
+        .controlSize(.small)
+        .fixedSize()
+    }
+
+    @ViewBuilder
+    private func label(_ title: String, _ symbol: String, _ labeled: Bool) -> some View {
+        if labeled {
+            Label(title, systemImage: symbol)
+        } else {
+            Image(systemName: symbol)
+        }
+    }
+
+    private func sharedPick(_ photos: [PhotoItem]) -> PickStatus? {
+        guard let first = photos.first?.pickStatus, photos.allSatisfy({ $0.pickStatus == first }) else { return nil }
+        return first
     }
 }

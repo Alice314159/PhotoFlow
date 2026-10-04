@@ -76,9 +76,27 @@ filename  ★★★★☆  🟢   ISO 400  1/500  f/2.8
 
 ## Run
 
-Open `PhotoFlow.xcodeproj` in Xcode 15+ (macOS 14+) and run the PhotoFlow scheme.
+`Package.swift` is the only build definition (macOS 14+, Swift 5.10+). Command Line Tools are enough.
 
-With only Command Line Tools, `./scripts/package.sh` builds `dist/PhotoFlow.app` directly with `swiftc`.
+```
+./scripts/package.sh      # release build → dist/PhotoFlow.app (signed ad hoc)
+swift test                # Swift Testing: search, filters, exposure parsing, translations
+```
+
+Xcode can open `Package.swift` directly for debugging.
+
+## Layout of the code
+
+```
+PhotoFlowApp.swift        menus and window
+Models/                   PhotoItem, FilterState, SearchQuery, skins, Preferences keys, localization
+Services/                 SQLite, folder scan, EXIF, Vision classifier, geocoding, thumbnails, export
+ViewModels/PhotoLibrary   state + indexes; +Loading, +Marks, +Panels, +Keyboard, +Files, +Organize, +Actions
+Views/                    screens; Views/Components holds shared controls
+Tests/PhotoFlowTests      unit tests
+```
+
+Adding UI text: write `tr("English")` and add the Chinese to `Models/Localization+Chinese.swift`. `swift test` fails if a translation is missing or unused.
 
 ## Data flow
 

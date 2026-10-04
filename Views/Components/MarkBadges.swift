@@ -51,3 +51,37 @@ struct PickBadge: View {
         }
     }
 }
+
+/// Pick / Reject / Unflag as icon buttons, shared by the info bar and the batch bar.
+/// `current` is nil when a batch has mixed flags.
+struct PickButtons: View {
+    let current: PickStatus?
+    var appliesToSelection = false
+    let action: (PickStatus) -> Void
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach([PickStatus.picked, .rejected, .none]) { status in
+                button(status)
+            }
+        }
+    }
+
+    private func button(_ status: PickStatus) -> some View {
+        let active = current == status
+        return Button {
+            action(status)
+        } label: {
+            Image(systemName: status == .none ? "flag.slash" : status.systemImage)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(active && status != .none ? status.tint : Color.secondary)
+                .frame(width: 22, height: 20)
+                .background(active ? Color.primary.opacity(0.1) : .clear, in: RoundedRectangle(cornerRadius: 4))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(appliesToSelection
+              ? tr("%@ all selected (%@)", status.title, status.shortcut)
+              : "\(status.title) (\(status.shortcut))")
+    }
+}

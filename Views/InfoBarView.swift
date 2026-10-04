@@ -9,6 +9,9 @@ struct InfoBarView: View {
                 Text(photo.name)
                     .font(.headline)
                     .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: 260, alignment: .leading)
+                    .help(photo.filePath)
 
                 RatingStarsView(rating: photo.rating, size: 13, interactive: true) { value in
                     library.setRating(value, for: photo.id)
@@ -26,11 +29,15 @@ struct InfoBarView: View {
                     }
                 }
 
-                pickButtons(for: photo)
+                PickButtons(current: photo.pickStatus) { library.setPick($0) }
 
-                Spacer()
-
-                metadata(photo)
+                // Full details, then the exposure triangle only, then nothing as the window narrows.
+                ViewThatFits(in: .horizontal) {
+                    metadata(photo, compact: false)
+                    metadata(photo, compact: true)
+                    Color.clear.frame(width: 0, height: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
 
                 ShareLink(items: library.batchPhotos.map(\.url)) {
                     Image(systemName: "square.and.arrow.up")
@@ -68,24 +75,7 @@ struct InfoBarView: View {
         .background(library.skin.palette.chrome)
     }
 
-    private func pickButtons(for photo: PhotoItem) -> some View {
-        HStack(spacing: 4) {
-            pickButton(tr("P"), status: .picked, current: photo.pickStatus)
-            pickButton(tr("X"), status: .rejected, current: photo.pickStatus)
-            pickButton(tr("U"), status: .none, current: photo.pickStatus)
-        }
-    }
-
-    private func pickButton(_ title: String, status: PickStatus, current: PickStatus) -> some View {
-        Button(title) {
-            library.setPick(status)
-        }
-        .buttonStyle(.bordered)
-        .tint(current == status ? status.tint : nil)
-        .help("\(status.title) (\(status.shortcut))")
-    }
-
-    private func metadata(_ photo: PhotoItem) -> some View {
+    private func metadata(_ photo: PhotoItem, compact: Bool) -> some View {
         HStack(spacing: 12) {
             Text(photo.fileKind == "RAW" ? tr("RAW · %@", photo.url.pathExtension.uppercased()) : photo.fileKind)
                 .fontWeight(.semibold)
@@ -101,18 +91,20 @@ struct InfoBarView: View {
             if let focal = photo.focalLength {
                 Text(ExposureFormat.focalLabel(focal))
             }
-            if photo.camera != nil || photo.cameraMake != nil {
-                Text(photo.cameraDisplayName)
-                    .lineLimit(1)
-            }
-            if let lens = photo.lens, !lens.isEmpty {
-                Text(lens)
-                    .lineLimit(1)
-            }
-            if let date = photo.createdDate {
-                Text(date.formatted(date: .abbreviated, time: .shortened))
+            if !compact {
+                if photo.camera != nil || photo.cameraMake != nil {
+                    Text(photo.cameraDisplayName)
+                }
+                if let lens = photo.lens, !lens.isEmpty {
+                    Text(lens)
+                }
+                if let date = photo.createdDate {
+                    Text(date.formatted(date: .abbreviated, time: .shortened))
+                }
             }
         }
+        .lineLimit(1)
+        .fixedSize()
         .font(.caption)
         .foregroundStyle(.secondary)
     }

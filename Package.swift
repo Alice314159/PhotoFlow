@@ -11,7 +11,7 @@ let package = Package(
         .executableTarget(
             name: "PhotoFlow",
             path: ".",
-            exclude: ["Assets.xcassets", "Resources", "scripts", "Tests", "README.md", "build", "dist"],
+            exclude: ["Assets.xcassets", "Resources", "scripts", "Tests", "README.md", "dist"],
             sources: ["PhotoFlowApp.swift", "Models", "Services", "ViewModels", "Views"],
             linkerSettings: [
                 .linkedLibrary("sqlite3"),
