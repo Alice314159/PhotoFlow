@@ -1,0 +1,436 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* PhotoFlowApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000001 /* PhotoFlowApp.swift */; };
+		A10000000000000000000002 /* ColorLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000002 /* ColorLabel.swift */; };
+		A10000000000000000000003 /* PickStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000003 /* PickStatus.swift */; };
+		A10000000000000000000004 /* PhotoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000004 /* PhotoItem.swift */; };
+		A10000000000000000000039 /* SearchQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000039 /* SearchQuery.swift */; };
+		A10000000000000000000041 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000041 /* Localization.swift */; };
+		A10000000000000000000042 /* Localization+Chinese.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000042 /* Localization+Chinese.swift */; };
+		A10000000000000000000036 /* PhotoCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000036 /* PhotoCategory.swift */; };
+		A10000000000000000000005 /* FilterState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000005 /* FilterState.swift */; };
+		A10000000000000000000006 /* ExposureFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000006 /* ExposureFormat.swift */; };
+		A10000000000000000000007 /* PhotoDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000007 /* PhotoDatabase.swift */; };
+		A10000000000000000000008 /* FolderScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000008 /* FolderScanner.swift */; };
+		A10000000000000000000009 /* MetadataReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000009 /* MetadataReader.swift */; };
+		A10000000000000000000010 /* ThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000010 /* ThumbnailCache.swift */; };
+		A10000000000000000000040 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000040 /* LocationService.swift */; };
+		A10000000000000000000037 /* PhotoClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000037 /* PhotoClassifier.swift */; };
+		A10000000000000000000011 /* PhotoLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000011 /* PhotoLibrary.swift */; };
+		A10000000000000000000012 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* Components.swift */; };
+		A10000000000000000000013 /* TopBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* TopBarView.swift */; };
+		A10000000000000000000014 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* SidebarView.swift */; };
+		A10000000000000000000015 /* FilterPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000015 /* FilterPanelView.swift */; };
+		A10000000000000000000016 /* ImageViewerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000016 /* ImageViewerView.swift */; };
+		A10000000000000000000017 /* FilmstripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000017 /* FilmstripView.swift */; };
+		A10000000000000000000018 /* ThumbnailGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000018 /* ThumbnailGridView.swift */; };
+		A10000000000000000000019 /* InfoBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000019 /* InfoBarView.swift */; };
+		A10000000000000000000020 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000020 /* SettingsView.swift */; };
+		A10000000000000000000021 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000021 /* ContentView.swift */; };
+		A10000000000000000000022 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000022 /* Assets.xcassets */; };
+		A10000000000000000000024 /* PhotoSort.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000024 /* PhotoSort.swift */; };
+		A10000000000000000000025 /* PhotoExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000025 /* PhotoExporter.swift */; };
+		A10000000000000000000026 /* InspectorPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000026 /* InspectorPanelView.swift */; };
+		A10000000000000000000027 /* MetadataInspectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000027 /* MetadataInspectorView.swift */; };
+		A10000000000000000000028 /* AppSkin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000028 /* AppSkin.swift */; };
+		A10000000000000000000029 /* ExportSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000029 /* ExportSettings.swift */; };
+		A10000000000000000000030 /* BatchBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000030 /* BatchBarView.swift */; };
+		A10000000000000000000031 /* BatchExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000031 /* BatchExportView.swift */; };
+		A10000000000000000000032 /* BatchRenameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000032 /* BatchRenameView.swift */; };
+		A10000000000000000000033 /* PhotoLibrary+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000033 /* PhotoLibrary+Actions.swift */; };
+		A10000000000000000000038 /* PhotoLibrary+Organize.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000038 /* PhotoLibrary+Organize.swift */; };
+		A10000000000000000000034 /* PhotoActionsMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000034 /* PhotoActionsMenu.swift */; };
+		A10000000000000000000035 /* ShortcutsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000035 /* ShortcutsView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		B10000000000000000000001 /* PhotoFlowApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoFlowApp.swift; sourceTree = "<group>"; };
+		B10000000000000000000002 /* ColorLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorLabel.swift; sourceTree = "<group>"; };
+		B10000000000000000000003 /* PickStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickStatus.swift; sourceTree = "<group>"; };
+		B10000000000000000000004 /* PhotoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoItem.swift; sourceTree = "<group>"; };
+		B10000000000000000000039 /* SearchQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchQuery.swift; sourceTree = "<group>"; };
+		B10000000000000000000041 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Localization.swift"; sourceTree = "<group>"; };
+		B10000000000000000000042 /* Localization+Chinese.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Localization+Chinese.swift"; sourceTree = "<group>"; };
+		B10000000000000000000036 /* PhotoCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoCategory.swift; sourceTree = "<group>"; };
+		B10000000000000000000005 /* FilterState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterState.swift; sourceTree = "<group>"; };
+		B10000000000000000000006 /* ExposureFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExposureFormat.swift; sourceTree = "<group>"; };
+		B10000000000000000000007 /* PhotoDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoDatabase.swift; sourceTree = "<group>"; };
+		B10000000000000000000008 /* FolderScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderScanner.swift; sourceTree = "<group>"; };
+		B10000000000000000000009 /* MetadataReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataReader.swift; sourceTree = "<group>"; };
+		B10000000000000000000010 /* ThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailCache.swift; sourceTree = "<group>"; };
+		B10000000000000000000040 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
+		B10000000000000000000037 /* PhotoClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoClassifier.swift; sourceTree = "<group>"; };
+		B10000000000000000000011 /* PhotoLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibrary.swift; sourceTree = "<group>"; };
+		B10000000000000000000012 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		B10000000000000000000013 /* TopBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopBarView.swift; sourceTree = "<group>"; };
+		B10000000000000000000014 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		B10000000000000000000015 /* FilterPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterPanelView.swift; sourceTree = "<group>"; };
+		B10000000000000000000016 /* ImageViewerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewerView.swift; sourceTree = "<group>"; };
+		B10000000000000000000017 /* FilmstripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilmstripView.swift; sourceTree = "<group>"; };
+		B10000000000000000000018 /* ThumbnailGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailGridView.swift; sourceTree = "<group>"; };
+		B10000000000000000000019 /* InfoBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoBarView.swift; sourceTree = "<group>"; };
+		B10000000000000000000020 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B10000000000000000000021 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		B10000000000000000000022 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B10000000000000000000023 /* PhotoFlow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PhotoFlow.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10000000000000000000024 /* PhotoSort.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoSort.swift; sourceTree = "<group>"; };
+		B10000000000000000000025 /* PhotoExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoExporter.swift; sourceTree = "<group>"; };
+		B10000000000000000000026 /* InspectorPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectorPanelView.swift; sourceTree = "<group>"; };
+		B10000000000000000000027 /* MetadataInspectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataInspectorView.swift; sourceTree = "<group>"; };
+		B10000000000000000000028 /* AppSkin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSkin.swift; sourceTree = "<group>"; };
+		B10000000000000000000029 /* ExportSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportSettings.swift; sourceTree = "<group>"; };
+		B10000000000000000000030 /* BatchBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchBarView.swift; sourceTree = "<group>"; };
+		B10000000000000000000031 /* BatchExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchExportView.swift; sourceTree = "<group>"; };
+		B10000000000000000000032 /* BatchRenameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchRenameView.swift; sourceTree = "<group>"; };
+		B10000000000000000000033 /* PhotoLibrary+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PhotoLibrary+Actions.swift"; sourceTree = "<group>"; };
+		B10000000000000000000038 /* PhotoLibrary+Organize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PhotoLibrary+Organize.swift"; sourceTree = "<group>"; };
+		B10000000000000000000034 /* PhotoActionsMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoActionsMenu.swift; sourceTree = "<group>"; };
+		B10000000000000000000035 /* ShortcutsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C10000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		D10000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				D10000000000000000000002 /* PhotoFlow */,
+				D10000000000000000000007 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D10000000000000000000002 /* PhotoFlow */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000001 /* PhotoFlowApp.swift */,
+				B10000000000000000000022 /* Assets.xcassets */,
+				D10000000000000000000003 /* Models */,
+				D10000000000000000000004 /* Services */,
+				D10000000000000000000005 /* ViewModels */,
+				D10000000000000000000006 /* Views */,
+			);
+			name = PhotoFlow;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000003 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000002 /* ColorLabel.swift */,
+				B10000000000000000000003 /* PickStatus.swift */,
+				B10000000000000000000004 /* PhotoItem.swift */,
+				B10000000000000000000039 /* SearchQuery.swift */,
+				B10000000000000000000041 /* Localization.swift */,
+				B10000000000000000000042 /* Localization+Chinese.swift */,
+				B10000000000000000000036 /* PhotoCategory.swift */,
+				B10000000000000000000005 /* FilterState.swift */,
+				B10000000000000000000024 /* PhotoSort.swift */,
+				B10000000000000000000028 /* AppSkin.swift */,
+				B10000000000000000000029 /* ExportSettings.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000004 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000006 /* ExposureFormat.swift */,
+				B10000000000000000000007 /* PhotoDatabase.swift */,
+				B10000000000000000000008 /* FolderScanner.swift */,
+				B10000000000000000000009 /* MetadataReader.swift */,
+				B10000000000000000000010 /* ThumbnailCache.swift */,
+				B10000000000000000000040 /* LocationService.swift */,
+				B10000000000000000000037 /* PhotoClassifier.swift */,
+				B10000000000000000000025 /* PhotoExporter.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000005 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000011 /* PhotoLibrary.swift */,
+				B10000000000000000000033 /* PhotoLibrary+Actions.swift */,
+				B10000000000000000000038 /* PhotoLibrary+Organize.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000006 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000021 /* ContentView.swift */,
+				B10000000000000000000012 /* Components.swift */,
+				B10000000000000000000013 /* TopBarView.swift */,
+				B10000000000000000000014 /* SidebarView.swift */,
+				B10000000000000000000015 /* FilterPanelView.swift */,
+				B10000000000000000000016 /* ImageViewerView.swift */,
+				B10000000000000000000017 /* FilmstripView.swift */,
+				B10000000000000000000018 /* ThumbnailGridView.swift */,
+				B10000000000000000000019 /* InfoBarView.swift */,
+				B10000000000000000000020 /* SettingsView.swift */,
+				B10000000000000000000026 /* InspectorPanelView.swift */,
+				B10000000000000000000027 /* MetadataInspectorView.swift */,
+				B10000000000000000000030 /* BatchBarView.swift */,
+				B10000000000000000000031 /* BatchExportView.swift */,
+				B10000000000000000000032 /* BatchRenameView.swift */,
+				B10000000000000000000034 /* PhotoActionsMenu.swift */,
+				B10000000000000000000035 /* ShortcutsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000007 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000023 /* PhotoFlow.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E10000000000000000000001 /* PhotoFlow */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F10000000000000000000003 /* Build configuration list for PBXNativeTarget "PhotoFlow" */;
+			buildPhases = (
+				C10000000000000000000002 /* Sources */,
+				C10000000000000000000001 /* Frameworks */,
+				C10000000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PhotoFlow;
+			productName = PhotoFlow;
+			productReference = B10000000000000000000023 /* PhotoFlow.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		E10000000000000000000002 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					E10000000000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = F10000000000000000000004 /* Build configuration list for PBXProject "PhotoFlow" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = D10000000000000000000001;
+			productRefGroup = D10000000000000000000007 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E10000000000000000000001 /* PhotoFlow */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C10000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000022 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C10000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* PhotoFlowApp.swift in Sources */,
+				A10000000000000000000002 /* ColorLabel.swift in Sources */,
+				A10000000000000000000003 /* PickStatus.swift in Sources */,
+				A10000000000000000000004 /* PhotoItem.swift in Sources */,
+				A10000000000000000000039 /* SearchQuery.swift in Sources */,
+				A10000000000000000000041 /* Localization.swift in Sources */,
+				A10000000000000000000042 /* Localization+Chinese.swift in Sources */,
+				A10000000000000000000036 /* PhotoCategory.swift in Sources */,
+				A10000000000000000000005 /* FilterState.swift in Sources */,
+				A10000000000000000000006 /* ExposureFormat.swift in Sources */,
+				A10000000000000000000007 /* PhotoDatabase.swift in Sources */,
+				A10000000000000000000008 /* FolderScanner.swift in Sources */,
+				A10000000000000000000009 /* MetadataReader.swift in Sources */,
+				A10000000000000000000010 /* ThumbnailCache.swift in Sources */,
+				A10000000000000000000040 /* LocationService.swift in Sources */,
+				A10000000000000000000037 /* PhotoClassifier.swift in Sources */,
+				A10000000000000000000011 /* PhotoLibrary.swift in Sources */,
+				A10000000000000000000012 /* Components.swift in Sources */,
+				A10000000000000000000013 /* TopBarView.swift in Sources */,
+				A10000000000000000000014 /* SidebarView.swift in Sources */,
+				A10000000000000000000015 /* FilterPanelView.swift in Sources */,
+				A10000000000000000000016 /* ImageViewerView.swift in Sources */,
+				A10000000000000000000017 /* FilmstripView.swift in Sources */,
+				A10000000000000000000018 /* ThumbnailGridView.swift in Sources */,
+				A10000000000000000000019 /* InfoBarView.swift in Sources */,
+				A10000000000000000000020 /* SettingsView.swift in Sources */,
+				A10000000000000000000021 /* ContentView.swift in Sources */,
+				A10000000000000000000024 /* PhotoSort.swift in Sources */,
+				A10000000000000000000025 /* PhotoExporter.swift in Sources */,
+				A10000000000000000000026 /* InspectorPanelView.swift in Sources */,
+				A10000000000000000000027 /* MetadataInspectorView.swift in Sources */,
+				A10000000000000000000028 /* AppSkin.swift in Sources */,
+				A10000000000000000000029 /* ExportSettings.swift in Sources */,
+				A10000000000000000000030 /* BatchBarView.swift in Sources */,
+				A10000000000000000000031 /* BatchExportView.swift in Sources */,
+				A10000000000000000000032 /* BatchRenameView.swift in Sources */,
+				A10000000000000000000033 /* PhotoLibrary+Actions.swift in Sources */,
+				A10000000000000000000038 /* PhotoLibrary+Organize.swift in Sources */,
+				A10000000000000000000034 /* PhotoActionsMenu.swift in Sources */,
+				A10000000000000000000035 /* ShortcutsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		F10000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		F10000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		F10000000000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = PhotoFlow;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
+				INFOPLIST_KEY_NSHighResolutionCapable = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "-lsqlite3";
+				PRODUCT_BUNDLE_IDENTIFIER = com.photoflow.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F10000000000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = PhotoFlow;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
+				INFOPLIST_KEY_NSHighResolutionCapable = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "-lsqlite3";
+				PRODUCT_BUNDLE_IDENTIFIER = com.photoflow.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F10000000000000000000003 /* Build configuration list for PBXNativeTarget "PhotoFlow" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F10000000000000000000005 /* Debug */,
+				F10000000000000000000006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F10000000000000000000004 /* Build configuration list for PBXProject "PhotoFlow" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F10000000000000000000001 /* Debug */,
+				F10000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = E10000000000000000000002 /* Project object */;
+}
