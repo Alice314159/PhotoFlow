@@ -75,26 +75,9 @@ struct FilterState: Equatable {
             || smartAlbum != .all
     }
 
-    /// True when only the search box changed (used to debounce typing).
-    func differsOnlyInSearch(from other: FilterState) -> Bool {
-        erasingSearch() == other.erasingSearch() && searchText != other.searchText
-    }
-
-    /// Same filter with an empty search box, for sidebar / inspector snapshots.
-    func erasingSearch() -> FilterState {
-        var copy = self
-        copy.searchText = ""
-        return copy
-    }
-
     /// Whether changing a rating, color, or flag can move a photo in or out of the results.
     var dependsOnMarks: Bool {
         minimumRating > 0 || !selectedColors.isEmpty || !selectedPicks.isEmpty
-    }
-
-    /// Groups, places, and search look at analysis / GPS text, not just marks.
-    var dependsOnContent: Bool {
-        !searchText.isEmpty || !selectedCategories.isEmpty || !selectedPlaces.isEmpty
     }
 
     var activeCount: Int {

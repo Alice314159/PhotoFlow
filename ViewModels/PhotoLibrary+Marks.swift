@@ -99,7 +99,7 @@ extension PhotoLibrary {
 
     private func recordUndo(_ before: [PhotoItem]) {
         guard !before.isEmpty else { return }
-        undoStack.append(before.map(MarkDelta.init))
+        undoStack.append(before)
         if undoStack.count > 200 { undoStack.removeFirst() }
         redoStack.removeAll()
     }
@@ -120,13 +120,13 @@ extension PhotoLibrary {
     }
 
     /// Puts `snapshot` back and returns what it replaced.
-    private func restore(_ snapshot: [MarkDelta]) -> [MarkDelta] {
+    private func restore(_ snapshot: [PhotoItem]) -> [PhotoItem] {
         var next = photos
-        var replaced: [MarkDelta] = []
+        var replaced: [PhotoItem] = []
         var changed: [PhotoItem] = []
         for item in snapshot {
             guard let index = photoIndex[item.id] else { continue }
-            replaced.append(MarkDelta(next[index]))
+            replaced.append(next[index])
             var restored = next[index]
             restored.rating = item.rating
             restored.colorLabel = item.colorLabel
@@ -136,6 +136,7 @@ extension PhotoLibrary {
         }
         markOnlyChange = changed.map(\.id)
         photos = next
+        // Save the current rows with restored marks, not the old snapshot (which may be stale or from another folder).
         let rows = changed
         database.write { $0.saveMany(rows) }
         revealSelection()

@@ -24,20 +24,17 @@ struct RangeFilterRow: View {
                     .lineLimit(1)
             }
 
-            DualRangeSlider(low: low.projectedValue, high: high.projectedValue, onCommit: commit)
+            DualRangeSlider(low: low.projectedValue, high: high.projectedValue)
         }
         .onAppear { syncFromSelection() }
         .onChange(of: range) { _, _ in syncFromSelection() }
         .onChange(of: selection) { _, _ in syncFromSelection() }
+        .onChange(of: low.wrappedValue) { _, _ in commit() }
+        .onChange(of: high.wrappedValue) { _, _ in commit() }
     }
 
     private var current: ClosedRange<Double> {
-        let a = min(low.wrappedValue, high.wrappedValue)
-        let b = max(low.wrappedValue, high.wrappedValue)
-        if a <= 0.005 && b >= 0.995 { return range }
-        let start = usesLog ? ExposureFormat.logInterpolate(t: a, range: range) : linear(a)
-        let end = usesLog ? ExposureFormat.logInterpolate(t: b, range: range) : linear(b)
-        return start ... end
+        selection ?? range
     }
 
     private func syncFromSelection() {
@@ -77,7 +74,6 @@ struct RangeFilterRow: View {
 struct DualRangeSlider: View {
     @Binding var low: Double
     @Binding var high: Double
-    var onCommit: () -> Void = {}
 
     private var draggingLow = State<Bool?>(initialValue: nil)
 
@@ -117,7 +113,6 @@ struct DualRangeSlider: View {
                     }
                     .onEnded { _ in
                         draggingLow.wrappedValue = nil
-                        onCommit()
                     }
             )
         }

@@ -11,12 +11,6 @@ struct PhotoActionsMenu: View {
         let single = targets.count == 1
         let noun = single ? "" : tr(" %@ Photos", targets.count)
 
-        if let anchor, anchor.availability != .available {
-            Button(tr("Grant Folder Access…")) { run { library.grantFolderAccess(for: anchor) } }
-            Button(tr("Reveal in Finder")) { run { library.revealBatchInFinder() } }
-            Divider()
-        }
-
         Button(tr("Open in Preview")) { run { library.openInPreview() } }
         Button(tr("Open with Default App")) { run { library.openWithDefaultApp() } }
         Button(tr("Reveal in Finder")) { run { library.revealBatchInFinder() } }

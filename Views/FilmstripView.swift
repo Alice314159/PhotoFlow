@@ -1,26 +1,21 @@
 import AppKit
 import SwiftUI
 
-struct FilmstripView: View, Equatable {
-    let library: PhotoLibrary
-    @ObservedObject var browser: LibraryBrowser
-
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.library === rhs.library && lhs.browser === rhs.browser
-    }
+struct FilmstripView: View {
+    @ObservedObject var library: PhotoLibrary
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: true) {
                 LazyHStack(spacing: 8) {
-                    ForEach(browser.filteredPhotos) { photo in
+                    ForEach(library.filteredPhotos) { photo in
                         ThumbnailCell(
                             photo: photo,
-                            isSelected: browser.selectedID == photo.id,
-                            isChecked: browser.checkedIDs.contains(photo.id),
+                            isSelected: library.selectedID == photo.id,
+                            isChecked: library.isChecked(photo),
                             width: 136,
                             height: 94,
-                            inTargetCollection: browser.isInTarget(photo),
+                            inTargetCollection: library.isInTargetCollection(photo),
                             onToggleCheck: { library.toggleChecked(photo) }
                         )
                         .id(photo.id)
@@ -40,7 +35,7 @@ struct FilmstripView: View, Equatable {
                 .padding(.top, 2)
                 .padding(.bottom, 10)
             }
-            .onChange(of: browser.selectedID) { _, id in
+            .onChange(of: library.selectedID) { _, id in
                 guard let id else { return }
                 withAnimation(.easeInOut(duration: 0.15)) {
                     proxy.scrollTo(id, anchor: .center)

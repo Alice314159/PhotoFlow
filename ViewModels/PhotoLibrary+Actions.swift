@@ -173,28 +173,6 @@ extension PhotoLibrary {
         NSWorkspace.shared.activateFileViewerSelecting(urls)
     }
 
-    /// NSOpenPanel for a parent folder of an inaccessible collection photo.
-    func grantFolderAccess(for photo: PhotoItem) {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.canCreateDirectories = false
-        panel.directoryURL = photo.url.deletingLastPathComponent()
-        panel.prompt = tr("Open")
-        panel.message = tr("Allow PhotoFlow to read photos in this folder. Files are never modified.")
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        rememberFolderAccess(url)
-        if url.startAccessingSecurityScopedResource() {
-            extraFolderAccess.append(url)
-        }
-        if let id = activeCollectionID {
-            openCollection(id)
-        } else {
-            refreshChangedFiles()
-        }
-    }
-
     func setDesktopPicture() {
         guard let photo = batchPhotos.first else { return }
         do {

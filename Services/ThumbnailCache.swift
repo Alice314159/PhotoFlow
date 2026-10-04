@@ -15,8 +15,6 @@ final class ThumbnailCache: @unchecked Sendable {
 
     private let lock = NSLock()
     private var inFlight: [NSString: DispatchGroup] = [:]
-    /// Caps simultaneous ImageIO/RAW decodes so a fast grid scroll doesn't melt the CPU.
-    private let decodeSlots = DispatchSemaphore(value: 4)
 
     /// `version` is the file's modification date, so an image edited elsewhere gets a fresh thumbnail.
     /// Concurrent requests for the same image share one decode.
@@ -43,10 +41,7 @@ final class ThumbnailCache: @unchecked Sendable {
             group.leave()
         }
 
-        decodeSlots.wait()
-        let generated = generate(from: url, maxPixelSize: maxPixelSize)
-        decodeSlots.signal()
-        guard let (image, cost) = generated else { return nil }
+        guard let (image, cost) = generate(from: url, maxPixelSize: maxPixelSize) else { return nil }
         cache.setObject(image, forKey: key, cost: cost)
         return image
     }

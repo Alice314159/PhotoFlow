@@ -17,7 +17,6 @@ enum Preferences {
         static let targetCollectionID = "targetCollectionID"
         static let lastFolderBookmark = "lastFolderBookmark"
         static let lastFolderPath = "lastFolderPath"
-        static let folderAccessBookmarks = "folderAccessBookmarks"
         /// AppKit's own key; read at launch for the menus it builds itself.
         static let appleLanguages = "AppleLanguages"
     }

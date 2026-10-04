@@ -6,38 +6,21 @@ final class PhotoDatabase: @unchecked Sendable {
 
     private var db: OpaquePointer?
     private let queue = DispatchQueue(label: "com.photoflow.sqlite")
-    private static let queueKey = DispatchSpecificKey<UInt8>()
-    private(set) var isAvailable = false
+    private let writeQueue = DispatchQueue(label: "com.photoflow.sqlite.writes", qos: .utility)
 
-    /// One serial queue for reads and writes. `write` is async; `save` is safe to call
-    /// from inside `write` (re-entrant) or from tests (sync).
+    /// Runs `work` off the main thread, strictly in call order, so a later mark can never be
+    /// overwritten by an earlier save that happened to start late.
     func write(_ work: @escaping @Sendable (PhotoDatabase) -> Void) {
-        guard isAvailable else { return }
-        queue.async { work(self) }
+        writeQueue.async { work(self) }
     }
 
-    /// Blocks until queued work is done; call before reading data that was just written.
+    /// Blocks until queued writes are done; call before reading data that was just written.
     func waitForWrites() {
-        guard !isOnQueue else { return }
-        sync {}
+        writeQueue.sync {}
     }
 
-    private var isOnQueue: Bool {
-        DispatchQueue.getSpecific(key: Self.queueKey) != nil
-    }
-
-    private func sync(_ work: () -> Void) {
-        if isOnQueue { work() } else { queue.sync(execute: work) }
-    }
-
-    private func sync<T>(_ work: () -> T) -> T {
-        if isOnQueue { return work() }
-        return queue.sync(execute: work)
-    }
-
-    init(fileURL: URL? = nil) {
-        queue.setSpecific(key: Self.queueKey, value: 1)
-        open(at: fileURL)
+    private init() {
+        open()
         migrate()
     }
 
@@ -49,7 +32,7 @@ final class PhotoDatabase: @unchecked Sendable {
 
     func annotations(for paths: [String]) -> [String: PhotoItem] {
         guard !paths.isEmpty else { return [:] }
-        return sync {
+        return queue.sync {
             var result: [String: PhotoItem] = [:]
             for chunk in paths.chunked(into: 400) {
                 let placeholders = Array(repeating: "?", count: chunk.count).joined(separator: ",")
@@ -77,8 +60,7 @@ final class PhotoDatabase: @unchecked Sendable {
     }
 
     func save(_ photo: PhotoItem) {
-        guard isAvailable else { return }
-        sync {
+        queue.sync {
             let sql = """
             INSERT INTO photos (
                 file_path, rating, color_label, pick_status, shutter_speed, aperture, iso,
@@ -111,45 +93,31 @@ final class PhotoDatabase: @unchecked Sendable {
     }
 
     func updatePath(from oldPath: String, to newPath: String) {
-        updatePaths([(oldPath, newPath)])
-    }
+        queue.sync {
+            let sql = "UPDATE photos SET file_path = ?, updated_at = ? WHERE file_path = ?;"
+            var statement: OpaquePointer?
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return }
+            defer { sqlite3_finalize(statement) }
+            sqlite3_bind_text(statement, 1, newPath, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_double(statement, 2, Date().timeIntervalSince1970)
+            sqlite3_bind_text(statement, 3, oldPath, -1, SQLITE_TRANSIENT)
+            sqlite3_step(statement)
 
-    func updatePaths(_ pairs: [(String, String)]) {
-        guard isAvailable, !pairs.isEmpty else { return }
-        sync {
-            sqlite3_exec(db, "BEGIN TRANSACTION;", nil, nil, nil)
-            for (oldPath, newPath) in pairs {
-                updatePathUnlocked(from: oldPath, to: newPath)
+            for table in ["photo_analysis", "collection_items", "photo_location"] {
+                var update: OpaquePointer?
+                guard sqlite3_prepare_v2(db, "UPDATE OR IGNORE \(table) SET file_path = ? WHERE file_path = ?;", -1, &update, nil) == SQLITE_OK else {
+                    continue
+                }
+                sqlite3_bind_text(update, 1, newPath, -1, SQLITE_TRANSIENT)
+                sqlite3_bind_text(update, 2, oldPath, -1, SQLITE_TRANSIENT)
+                sqlite3_step(update)
+                sqlite3_finalize(update)
             }
-            sqlite3_exec(db, "COMMIT;", nil, nil, nil)
-        }
-    }
-
-    private func updatePathUnlocked(from oldPath: String, to newPath: String) {
-        let sql = "UPDATE photos SET file_path = ?, updated_at = ? WHERE file_path = ?;"
-        var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return }
-        defer { sqlite3_finalize(statement) }
-        sqlite3_bind_text(statement, 1, newPath, -1, SQLITE_TRANSIENT)
-        sqlite3_bind_double(statement, 2, Date().timeIntervalSince1970)
-        sqlite3_bind_text(statement, 3, oldPath, -1, SQLITE_TRANSIENT)
-        sqlite3_step(statement)
-
-        for table in ["photo_analysis", "collection_items", "photo_location"] {
-            var update: OpaquePointer?
-            guard sqlite3_prepare_v2(db, "UPDATE OR IGNORE \(table) SET file_path = ? WHERE file_path = ?;", -1, &update, nil) == SQLITE_OK else {
-                continue
-            }
-            sqlite3_bind_text(update, 1, newPath, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(update, 2, oldPath, -1, SQLITE_TRANSIENT)
-            sqlite3_step(update)
-            sqlite3_finalize(update)
         }
     }
 
     func saveMany(_ photos: [PhotoItem]) {
-        guard isAvailable, !photos.isEmpty else { return }
-        sync {
+        queue.sync {
             sqlite3_exec(db, "BEGIN TRANSACTION;", nil, nil, nil)
             for photo in photos {
                 saveUnlocked(photo)
@@ -188,33 +156,21 @@ final class PhotoDatabase: @unchecked Sendable {
         sqlite3_step(statement)
     }
 
-    private func open(at fileURL: URL?) {
-        let url: URL
-        if let fileURL {
-            try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            url = fileURL
-        } else {
-            let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-                .appendingPathComponent("PhotoFlow", isDirectory: true)
-            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            url = folder.appendingPathComponent("photoflow.sqlite")
-        }
+    private func open() {
+        let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("PhotoFlow", isDirectory: true)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let url = folder.appendingPathComponent("photoflow.sqlite")
 
         if sqlite3_open(url.path, &db) != SQLITE_OK {
-            let message = db.map { String(cString: sqlite3_errmsg($0)) } ?? "unknown error"
-            NSLog("PhotoFlow: could not open database at \(url.path): \(message)")
             sqlite3_close(db)
             db = nil
-            isAvailable = false
-            return
         }
-        isAvailable = true
         sqlite3_exec(db, "PRAGMA journal_mode=WAL;", nil, nil, nil)
         sqlite3_exec(db, "PRAGMA foreign_keys=ON;", nil, nil, nil)
     }
 
     private func migrate() {
-        guard isAvailable else { return }
         let sql = """
         CREATE TABLE IF NOT EXISTS photos (
             file_path TEXT PRIMARY KEY NOT NULL,
@@ -292,7 +248,7 @@ final class PhotoDatabase: @unchecked Sendable {
 
     func locations(for paths: [String]) -> [String: StoredLocation] {
         guard !paths.isEmpty else { return [:] }
-        return sync {
+        return queue.sync {
             var result: [String: StoredLocation] = [:]
             for chunk in paths.chunked(into: 400) {
                 let placeholders = Array(repeating: "?", count: chunk.count).joined(separator: ",")
@@ -320,7 +276,7 @@ final class PhotoDatabase: @unchecked Sendable {
     /// Upserts rows; nil coordinates mean "checked, no GPS".
     func saveLocations(_ items: [(path: String, location: StoredLocation, manual: Bool)]) {
         guard !items.isEmpty else { return }
-        sync {
+        queue.sync {
             let sql = """
             INSERT INTO photo_location (file_path, latitude, longitude, place_name, place_text, manual, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -353,7 +309,7 @@ final class PhotoDatabase: @unchecked Sendable {
     }
 
     func cachedPlace(cell: String) -> (name: String, text: String)? {
-        sync {
+        queue.sync {
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(db, "SELECT place_name, place_text FROM place_cache WHERE cell = ?;", -1, &statement, nil) == SQLITE_OK else {
                 return nil
@@ -367,7 +323,7 @@ final class PhotoDatabase: @unchecked Sendable {
     }
 
     func cachePlace(cell: String, name: String, text: String) {
-        sync {
+        queue.sync {
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(db, "INSERT OR REPLACE INTO place_cache (cell, place_name, place_text) VALUES (?, ?, ?);", -1, &statement, nil) == SQLITE_OK else {
                 return
@@ -391,7 +347,7 @@ final class PhotoDatabase: @unchecked Sendable {
 
     func analyses(for paths: [String]) -> [String: StoredAnalysis] {
         guard !paths.isEmpty else { return [:] }
-        return sync {
+        return queue.sync {
             var result: [String: StoredAnalysis] = [:]
             for chunk in paths.chunked(into: 400) {
                 let placeholders = Array(repeating: "?", count: chunk.count).joined(separator: ",")
@@ -419,7 +375,7 @@ final class PhotoDatabase: @unchecked Sendable {
 
     func saveAnalyses(_ items: [(path: String, categories: Set<PhotoCategory>, labels: [String], faceCount: Int, version: Int, manual: Bool)]) {
         guard !items.isEmpty else { return }
-        sync {
+        queue.sync {
             let sql = """
             INSERT INTO photo_analysis (file_path, categories, labels, face_count, version, manual, analyzed_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -454,7 +410,7 @@ final class PhotoDatabase: @unchecked Sendable {
     // MARK: - Collections
 
     func loadCollections() -> [PhotoCollection] {
-        sync {
+        queue.sync {
             var collections: [Int64: PhotoCollection] = [:]
             var order: [Int64] = []
             var statement: OpaquePointer?
@@ -487,8 +443,7 @@ final class PhotoDatabase: @unchecked Sendable {
     }
 
     func createCollection(named name: String) -> Int64? {
-        guard isAvailable else { return nil }
-        return sync {
+        queue.sync {
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(db, "INSERT INTO collections (name, created_at) VALUES (?, ?);", -1, &statement, nil) == SQLITE_OK else {
                 return nil
@@ -502,7 +457,7 @@ final class PhotoDatabase: @unchecked Sendable {
     }
 
     func renameCollection(_ id: Int64, to name: String) {
-        sync {
+        queue.sync {
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(db, "UPDATE collections SET name = ? WHERE id = ?;", -1, &statement, nil) == SQLITE_OK else { return }
             defer { sqlite3_finalize(statement) }
@@ -513,7 +468,7 @@ final class PhotoDatabase: @unchecked Sendable {
     }
 
     func deleteCollection(_ id: Int64) {
-        sync {
+        queue.sync {
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(db, "DELETE FROM collections WHERE id = ?;", -1, &statement, nil) == SQLITE_OK else { return }
             defer { sqlite3_finalize(statement) }
@@ -532,7 +487,7 @@ final class PhotoDatabase: @unchecked Sendable {
 
     private func editCollection(_ id: Int64, paths: [String], sql: String) {
         guard !paths.isEmpty else { return }
-        sync {
+        queue.sync {
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return }
             defer { sqlite3_finalize(statement) }

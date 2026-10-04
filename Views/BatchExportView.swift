@@ -2,7 +2,6 @@ import SwiftUI
 
 struct BatchExportView: View {
     @ObservedObject var library: PhotoLibrary
-    @ObservedObject var activity: LibraryActivity
     @Environment(\.dismiss) private var dismiss
 
     private var estimate = State(initialValue: tr("Estimating…"))
@@ -132,11 +131,11 @@ struct BatchExportView: View {
                 Spacer()
                 Button(tr("Cancel")) { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button(activity.isExporting ? tr("Exporting…") : tr("Export")) {
+                Button(library.isExporting ? tr("Exporting…") : tr("Export")) {
                     runExport()
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(activity.isExporting || library.batchPhotos.isEmpty || !settings.isValid)
+                .disabled(library.isExporting || library.batchPhotos.isEmpty || !settings.isValid)
             }
         }
         .padding(24)

@@ -29,6 +29,8 @@ struct PhotoFlowApp: App {
             CommandGroup(replacing: .newItem) {
                 Button(tr("Open Folder…")) { library.chooseFolder() }
                     .keyboardShortcut("o", modifiers: [.command])
+                Button(tr("Import Photos…")) { library.chooseFolder() }
+                    .keyboardShortcut("i", modifiers: [.command, .shift])
             }
 
             CommandGroup(replacing: .saveItem) {

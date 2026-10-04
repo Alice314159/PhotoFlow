@@ -44,8 +44,7 @@ struct CachedThumbnail: View {
             let path = url
             let size = maxPixelSize
             let version = version
-            let priority: TaskPriority = size > ThumbnailCache.gridSize ? .userInitiated : .utility
-            let loaded = await Task.detached(priority: priority) {
+            let loaded = await Task.detached(priority: .userInitiated) {
                 ThumbnailCache.shared.image(for: path, version: version, maxPixelSize: size)
             }.value
             image.wrappedValue = loaded
@@ -74,21 +73,9 @@ struct ThumbnailCell: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            if photo.availability == .available {
-                CachedThumbnail(url: photo.url, version: photo.fileModificationDate)
-                    .frame(width: width, height: height)
-                    .clipped()
-            } else {
-                VStack(spacing: 4) {
-                    Image(systemName: photo.availability == .missing ? "questionmark.folder" : "lock.fill")
-                        .font(.system(size: 18, weight: .medium))
-                    Text(photo.availability == .missing ? tr("Missing") : tr("No access"))
-                        .font(.caption2.weight(.semibold))
-                }
-                .foregroundStyle(.secondary)
+            CachedThumbnail(url: photo.url, version: photo.fileModificationDate)
                 .frame(width: width, height: height)
-                .background(Color.primary.opacity(0.08))
-            }
+                .clipped()
 
             HStack(spacing: 4) {
                 PickBadge(status: photo.pickStatus, compact: true)
