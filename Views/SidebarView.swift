@@ -406,9 +406,9 @@ struct SidebarView: View {
     private func countText(for album: SmartAlbum) -> String {
         switch album {
         case .all: "\(library.photos.count)"
-        case .rating(let value): "\(library.photos.filter { $0.rating >= value }.count)"
+        case .rating(let value): "\(library.markCounts.atLeast[min(max(value, 0), 5)])"
         case .color(let label): "\(library.colorCount(label))"
-        case .pick(let status): "\(library.photos.filter { $0.pickStatus == status }.count)"
+        case .pick(let status): "\(library.markCounts.picks[status] ?? 0)"
         }
     }
 }

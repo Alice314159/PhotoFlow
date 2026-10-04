@@ -130,9 +130,8 @@ extension PhotoLibrary {
             saved.append((target.id, groups, next[index].contentLabels, 0, PhotoClassifier.version, true))
         }
         photos = next
-        Task.detached { [database] in
-            database.saveAnalyses(saved)
-        }
+        let rows = saved
+        database.write { $0.saveAnalyses(rows) }
         revealSelection()
     }
 
@@ -281,7 +280,8 @@ extension PhotoLibrary {
         default:
             return
         }
-        database.saveLocations(rows.map { ($0.0, $0.1, true) })
+        let manual = rows.map { ($0.0, $0.1, true) }
+        database.write { $0.saveLocations(manual) }
         applyLocations(rows)
         revealSelection()
     }
@@ -323,6 +323,7 @@ extension PhotoLibrary {
     }
 
     func reloadCollections() {
+        database.waitForWrites()
         collections = database.loadCollections()
     }
 
@@ -427,7 +428,7 @@ extension PhotoLibrary {
 
     func add(paths: [String], to id: Int64) {
         guard !paths.isEmpty, let index = collections.firstIndex(where: { $0.id == id }) else { return }
-        database.addToCollection(id, paths: paths)
+        database.write { $0.addToCollection(id, paths: paths) }
         var next = collections
         let before = next[index].paths.count
         next[index].paths.formUnion(paths)
@@ -438,7 +439,7 @@ extension PhotoLibrary {
 
     func remove(paths: [String], from id: Int64) {
         guard !paths.isEmpty, let index = collections.firstIndex(where: { $0.id == id }) else { return }
-        database.removeFromCollection(id, paths: paths)
+        database.write { $0.removeFromCollection(id, paths: paths) }
         var next = collections
         next[index].paths.subtract(paths)
         collections = next

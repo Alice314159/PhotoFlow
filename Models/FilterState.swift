@@ -1,5 +1,29 @@
 import Foundation
 
+/// Photo counts per rating, flag, and color, kept up to date for the sidebar.
+struct MarkCounts: Equatable {
+    /// `atLeast[n]` = photos rated n stars or more.
+    var atLeast = [Int](repeating: 0, count: 6)
+    var picks: [PickStatus: Int] = [:]
+    var colors: [ColorLabel: Int] = [:]
+
+    init() {}
+
+    init(_ photos: [PhotoItem]) {
+        var exact = [Int](repeating: 0, count: 6)
+        for photo in photos {
+            exact[min(max(photo.rating, 0), 5)] += 1
+            picks[photo.pickStatus, default: 0] += 1
+            colors[photo.colorLabel, default: 0] += 1
+        }
+        var running = 0
+        for rating in stride(from: 5, through: 0, by: -1) {
+            running += exact[rating]
+            atLeast[rating] = running
+        }
+    }
+}
+
 enum SmartAlbum: Hashable, Identifiable {
     case all
     case rating(Int)
@@ -49,6 +73,11 @@ struct FilterState: Equatable {
             || !selectedColors.isEmpty
             || !selectedPicks.isEmpty
             || smartAlbum != .all
+    }
+
+    /// Whether changing a rating, color, or flag can move a photo in or out of the results.
+    var dependsOnMarks: Bool {
+        minimumRating > 0 || !selectedColors.isEmpty || !selectedPicks.isEmpty
     }
 
     var activeCount: Int {

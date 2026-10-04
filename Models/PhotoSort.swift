@@ -17,6 +17,8 @@ enum PhotoSort: String, CaseIterable, Identifiable {
         }
     }
 
+    var dependsOnMarks: Bool { self == .rating || self == .pickStatus }
+
     func compare(_ lhs: PhotoItem, _ rhs: PhotoItem) -> Bool {
         switch self {
         case .filename:

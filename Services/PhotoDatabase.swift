@@ -6,6 +6,18 @@ final class PhotoDatabase: @unchecked Sendable {
 
     private var db: OpaquePointer?
     private let queue = DispatchQueue(label: "com.photoflow.sqlite")
+    private let writeQueue = DispatchQueue(label: "com.photoflow.sqlite.writes", qos: .utility)
+
+    /// Runs `work` off the main thread, strictly in call order, so a later mark can never be
+    /// overwritten by an earlier save that happened to start late.
+    func write(_ work: @escaping @Sendable (PhotoDatabase) -> Void) {
+        writeQueue.async { work(self) }
+    }
+
+    /// Blocks until queued writes are done; call before reading data that was just written.
+    func waitForWrites() {
+        writeQueue.sync {}
+    }
 
     private init() {
         open()

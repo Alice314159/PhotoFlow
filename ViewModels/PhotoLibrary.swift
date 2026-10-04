@@ -35,8 +35,16 @@ struct ZoomCommand: Equatable {
 @MainActor
 final class PhotoLibrary: ObservableObject {
     @Published var photos: [PhotoItem] = [] {
-        didSet { rebuildIndexes() }
+        didSet {
+            if let changed = markOnlyChange {
+                markOnlyChange = nil
+                refreshAfterMarks(changed)
+            } else {
+                rebuildIndexes()
+            }
+        }
     }
+    @Published private(set) var markCounts = MarkCounts()
     @Published var selectedID: String? {
         didSet {
             if let selectedID, let position = visibleIndex[selectedID] { lastVisiblePosition = position }
@@ -157,6 +165,8 @@ final class PhotoLibrary: ObservableObject {
     /// Where the selection sat in `filteredPhotos`, so a photo leaving the filter selects its neighbour.
     private var lastVisiblePosition = 0
     private var prefetchTask: Task<Void, Never>?
+    /// IDs whose ratings, colors, or flags are the only thing changing in the next `photos` assignment.
+    private var markOnlyChange: [String]?
     private var undoStack: [[PhotoItem]] = []
     private var redoStack: [[PhotoItem]] = []
     private var presentationSnapshot: (panels: [Bool], topBar: Bool, mode: LibraryViewMode, wasFullScreen: Bool)?
@@ -194,7 +204,7 @@ final class PhotoLibrary: ObservableObject {
     @Published private(set) var kindFacets: [FacetCount] = []
 
     func colorCount(_ label: ColorLabel) -> Int {
-        photos.filter { $0.colorLabel == label }.count
+        markCounts.colors[label] ?? 0
     }
 
     init() {
@@ -681,10 +691,11 @@ final class PhotoLibrary: ObservableObject {
             }
             do {
                 try FileManager.default.moveItem(at: photo.url, to: unique)
-                if let index = nextPhotos.firstIndex(where: { $0.id == photo.id }) {
+                if let index = photoIndex[photo.id] {
                     let oldPath = nextPhotos[index].filePath
                     nextPhotos[index].filePath = unique.path
-                    database.updatePath(from: oldPath, to: unique.path)
+                    let newPath = unique.path
+                    database.write { $0.updatePath(from: oldPath, to: newPath) }
                     renames[oldPath] = unique.path
                 }
                 if photo.id == selectedID {
@@ -959,7 +970,8 @@ final class PhotoLibrary: ObservableObject {
     func loadFiles(_ scanned: [ScannedFile]) async {
         let paths = scanned.map { $0.url.path }
         let (stored, analyses, locations) = await Task.detached { [database] in
-            (database.annotations(for: paths), database.analyses(for: paths), database.locations(for: paths))
+            database.waitForWrites()
+            return (database.annotations(for: paths), database.analyses(for: paths), database.locations(for: paths))
         }.value
         if Task.isCancelled { return }
 
@@ -1024,9 +1036,7 @@ final class PhotoLibrary: ObservableObject {
         photos = items
         if !dirty.isEmpty {
             let refreshed = items.filter { dirty.contains($0.id) }
-            Task.detached(priority: .utility) { [database] in
-                database.saveMany(refreshed)
-            }
+            database.write { $0.saveMany(refreshed) }
         }
         bounds = FilterBounds.from(photos: items)
         isLoading = false
@@ -1071,7 +1081,27 @@ final class PhotoLibrary: ObservableObject {
         let placeFacets = places.map { FacetCount(name: $0.key, count: $0.value) }
             .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
         if placeFacets != placeCounts { placeCounts = placeFacets }
+        let marks = MarkCounts(photos)
+        if marks != markCounts { markCounts = marks }
         rebuildVisible()
+    }
+
+    /// Marks don't affect camera, lens, group, or place facets, so only the counts and,
+    /// when the filter or sort looks at marks, the visible list need refreshing.
+    private func refreshAfterMarks(_ ids: [String]) {
+        let marks = MarkCounts(photos)
+        if marks != markCounts { markCounts = marks }
+        if filter.dependsOnMarks || sort.dependsOnMarks {
+            rebuildVisible()
+            return
+        }
+        var visible = filteredPhotos
+        for id in ids {
+            if let position = visibleIndex[id], let index = photoIndex[id] {
+                visible[position] = photos[index]
+            }
+        }
+        filteredPhotos = visible
     }
 
     private func rebuildVisible() {
@@ -1127,11 +1157,10 @@ final class PhotoLibrary: ObservableObject {
         var next = photos
         recordUndo([next[index]])
         mutate(&next[index])
+        markOnlyChange = [id]
         photos = next
         let photo = next[index]
-        Task.detached { [database] in
-            database.save(photo)
-        }
+        database.write { $0.save(photo) }
         if !filter.matches(photo) {
             revealSelection()
         }
@@ -1147,10 +1176,10 @@ final class PhotoLibrary: ObservableObject {
             mutate(&next[index])
             changed.append(next[index])
         }
+        markOnlyChange = changed.map(\.id)
         photos = next
-        Task.detached { [database] in
-            database.saveMany(changed)
-        }
+        let rows = changed
+        database.write { $0.saveMany(rows) }
         revealSelection()
     }
 
@@ -1197,11 +1226,11 @@ final class PhotoLibrary: ObservableObject {
             next[index] = restored
             changed.append(restored)
         }
+        markOnlyChange = changed.map(\.id)
         photos = next
         // Save the current rows with restored marks, not the old snapshot (which may be stale or from another folder).
-        Task.detached { [database] in
-            database.saveMany(changed)
-        }
+        let rows = changed
+        database.write { $0.saveMany(rows) }
         revealSelection()
         return replaced
     }
