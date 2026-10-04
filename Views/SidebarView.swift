@@ -1,15 +1,24 @@
 import SwiftUI
 
-struct SidebarView: View {
-    @ObservedObject var library: PhotoLibrary
+struct SidebarView: View, Equatable {
+    let library: PhotoLibrary
+    @ObservedObject var lists: LibraryLists
     private var showAllPlaces = State(initialValue: false)
     private var showAllGroups = State(initialValue: false)
+    private var renamingColor = State<ColorLabel?>(initialValue: nil)
 
     private static let groupLimit = 6
     private static let placeLimit = 5
 
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.library === rhs.library && lhs.lists === rhs.lists
+    }
+
+    private var snap: LibraryLists.Snapshot { lists.snapshot }
+
     init(library: PhotoLibrary) {
         self.library = library
+        _lists = ObservedObject(wrappedValue: library.lists)
     }
 
     var body: some View {
@@ -20,22 +29,22 @@ struct SidebarView: View {
             autoGroupsSection
             placesSection
 
-            if library.isLoading {
+            if snap.isLoading {
                 Section {
-                    ProgressView(library.scanProgress)
+                    ProgressView(snap.scanProgress)
                         .controlSize(.small)
                 }
             }
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
-        .background(library.skin.palette.panel)
+        .background(snap.skin.palette.panel)
         .frame(minWidth: 180, idealWidth: 220, maxWidth: 260)
     }
 
     private func expanded(_ id: String) -> Binding<Bool> {
         Binding(
-            get: { !library.collapsedSidebarSections.contains(id) },
+            get: { !snap.collapsed.contains(id) },
             set: { isExpanded in
                 var sections = library.collapsedSidebarSections
                 if isExpanded { sections.remove(id) } else { sections.insert(id) }
@@ -48,16 +57,16 @@ struct SidebarView: View {
 
     private var foldersSection: some View {
         Section(isExpanded: expanded("folders")) {
-            if let folder = library.folderURL {
+            if let name = snap.folderName {
                 Button {
                     library.returnToFolder()
                 } label: {
-                    Label(folder.lastPathComponent, systemImage: "folder.fill")
-                        .fontWeight(library.activeCollectionID == nil ? .semibold : .regular)
+                    Label(name, systemImage: "folder.fill")
+                        .fontWeight(snap.activeCollectionID == nil ? .semibold : .regular)
                         .lineLimit(1)
                 }
                 .buttonStyle(.plain)
-                .help(library.activeCollectionID == nil ? folder.path : tr("Back to this folder"))
+                .help(snap.activeCollectionID == nil ? (snap.folderPath ?? name) : tr("Back to this folder"))
             } else {
                 Button {
                     library.chooseFolder()
@@ -102,40 +111,64 @@ struct SidebarView: View {
         }
     }
 
-    /// All color labels on one line instead of five rows.
+    /// Color labels as named chips, two or three per line, so their meaning is visible without hovering.
     private var colorRow: some View {
-        HStack(spacing: 10) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 4)], alignment: .leading, spacing: 4) {
             ForEach(ColorLabel.assigned) { label in
-                Button {
-                    library.applySmartAlbum(.color(label))
-                } label: {
-                    VStack(spacing: 2) {
-                        ColorDot(label: label, isSelected: library.filter.smartAlbum == .color(label), size: 12)
-                        Text("\(library.colorCount(label))")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help(library.colorNames.name(for: label))
+                colorChip(label)
             }
-            Spacer(minLength: 0)
         }
         .padding(.vertical, 2)
+    }
+
+    private func colorChip(_ label: ColorLabel) -> some View {
+        let isOn = snap.smartAlbum == .color(label)
+        return Button {
+            library.applySmartAlbum(.color(label))
+        } label: {
+            HStack(spacing: 4) {
+                ColorDot(label: label, size: 9)
+                Text(snap.colorNames.name(for: label))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer(minLength: 2)
+                Text("\(snap.markCounts.colors[label] ?? 0)")
+                    .foregroundStyle(isOn ? Color.white.opacity(0.85) : .secondary)
+                    .monospacedDigit()
+            }
+            .font(.system(size: 11, weight: isOn ? .semibold : .regular))
+            .foregroundStyle(isOn ? Color.white : .primary)
+            .padding(.horizontal, 7)
+            .frame(minHeight: 22)
+            .background(isOn ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.quaternary.opacity(0.5)), in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help(tr("Right-click to rename"))
+        .contextMenu {
+            Button(tr("Rename…")) { renamingColor.wrappedValue = label }
+            if snap.colorNames.isCustom(label) {
+                Button(tr("Reset Name")) { library.colorNames.setName("", for: label) }
+            }
+        }
+        .popover(isPresented: Binding(
+            get: { renamingColor.wrappedValue == label },
+            set: { if !$0 { renamingColor.wrappedValue = nil } }
+        ), arrowEdge: .trailing) {
+            ColorLabelNameEditor(library: library, label: label) { renamingColor.wrappedValue = nil }
+        }
     }
 
     // MARK: - Collections
 
     private var collectionsSection: some View {
         Section(isExpanded: expanded("collections")) {
-            if library.collections.isEmpty {
+            if snap.collections.isEmpty {
                 Text(tr("⌘N to create, or press B to add to a Quick Collection. Drag photos onto a collection."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            ForEach(library.collections) { collection in
+            ForEach(snap.collections) { collection in
                 collectionRow(collection)
             }
         } header: {
@@ -154,8 +187,8 @@ struct SidebarView: View {
     }
 
     private func collectionRow(_ collection: PhotoCollection) -> some View {
-        let isActive = library.activeCollectionID == collection.id
-        let isTarget = library.targetCollectionID == collection.id
+        let isActive = snap.activeCollectionID == collection.id
+        let isTarget = snap.targetCollectionID == collection.id
         return Button {
             library.openCollection(collection.id)
         } label: {
@@ -202,20 +235,20 @@ struct SidebarView: View {
     /// Groups ordered by size; selected groups always stay visible even when folded.
     private var visibleGroups: (shown: [PhotoCategory], hidden: Int) {
         let all = PhotoCategory.allCases
-            .filter { (library.categoryCounts[$0] ?? 0) > 0 }
-            .sorted { (library.categoryCounts[$0] ?? 0) > (library.categoryCounts[$1] ?? 0) }
+            .filter { (snap.categoryCounts[$0] ?? 0) > 0 }
+            .sorted { (snap.categoryCounts[$0] ?? 0) > (snap.categoryCounts[$1] ?? 0) }
         guard !showAllGroups.wrappedValue, all.count > Self.groupLimit + 1 else { return (all, 0) }
         let top = all.prefix(Self.groupLimit)
-        let shown = all.filter { top.contains($0) || library.filter.selectedCategories.contains($0) }
+        let shown = all.filter { top.contains($0) || snap.selectedCategories.contains($0) }
         return (shown, all.count - shown.count)
     }
 
     private var autoGroupsSection: some View {
         Section(isExpanded: expanded("groups")) {
-            if library.isAnalyzing {
+            if snap.analysisTotal > 0 {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        ProgressCount(progress: library.progress, key: "Analyzing %@ / %@", done: \.analysisDone, total: library.analysisTotal)
+                        ProgressCount(progress: library.progress, key: "Analyzing %@ / %@", done: \.analysisDone, total: snap.analysisTotal)
                         Spacer()
                         Button {
                             library.cancelAnalysis()
@@ -225,9 +258,9 @@ struct SidebarView: View {
                         .buttonStyle(.borderless)
                         .help(tr("Stop analyzing"))
                     }
-                    ProgressBar(progress: library.progress, done: \.analysisDone, total: library.analysisTotal)
+                    ProgressBar(progress: library.progress, done: \.analysisDone, total: snap.analysisTotal)
                 }
-            } else if !library.photos.isEmpty, library.categoryCounts.isEmpty, !library.isLoading {
+            } else if snap.photoCount > 0, snap.categoryCounts.isEmpty, !snap.isLoading {
                 Button {
                     library.startAnalysis()
                 } label: {
@@ -263,7 +296,7 @@ struct SidebarView: View {
             HStack {
                 Text(tr("Auto Groups"))
                 Spacer()
-                if !library.filter.selectedCategories.isEmpty {
+                if !snap.selectedCategories.isEmpty {
                     Button(tr("Clear")) {
                         library.filter.selectedCategories = []
                         library.revealSelection()
@@ -276,7 +309,7 @@ struct SidebarView: View {
     }
 
     private func categoryChip(_ category: PhotoCategory) -> some View {
-        let isOn = library.filter.selectedCategories.contains(category)
+        let isOn = snap.selectedCategories.contains(category)
         return Button {
             library.selectCategory(category, additive: NSEvent.modifierFlags.contains(.command))
         } label: {
@@ -287,7 +320,7 @@ struct SidebarView: View {
                 Text(category.title)
                     .lineLimit(1)
                 Spacer(minLength: 2)
-                Text("\(library.categoryCounts[category] ?? 0)")
+                Text("\(snap.categoryCounts[category] ?? 0)")
                     .foregroundStyle(isOn ? Color.white.opacity(0.85) : .secondary)
                     .monospacedDigit()
             }
@@ -310,20 +343,20 @@ struct SidebarView: View {
 
     @ViewBuilder
     private var placesSection: some View {
-        if !library.placeCounts.isEmpty || library.isLookingUpPlaces {
+        if !snap.placeCounts.isEmpty || snap.placeLookupTotal > 0 {
             Section(isExpanded: expanded("places")) {
-                if library.isLookingUpPlaces {
+                if snap.placeLookupTotal > 0 {
                     HStack {
                         ProgressView().controlSize(.mini)
-                        ProgressCount(progress: library.progress, key: "Naming places %@ / %@", done: \.placeLookupDone, total: library.placeLookupTotal)
+                        ProgressCount(progress: library.progress, key: "Naming places %@ / %@", done: \.placeLookupDone, total: snap.placeLookupTotal)
                     }
                 }
                 let limit = showAllPlaces.wrappedValue ? Int.max : Self.placeLimit
-                ForEach(library.placeCounts.prefix(limit)) { place in
+                ForEach(snap.placeCounts.prefix(limit)) { place in
                     placeRow(place)
                 }
-                if library.placeCounts.count > Self.placeLimit {
-                    Button(showAllPlaces.wrappedValue ? tr("Show fewer") : tr("Show all %@", library.placeCounts.count)) {
+                if snap.placeCounts.count > Self.placeLimit {
+                    Button(showAllPlaces.wrappedValue ? tr("Show fewer") : tr("Show all %@", snap.placeCounts.count)) {
                         showAllPlaces.wrappedValue.toggle()
                     }
                     .buttonStyle(.plain)
@@ -334,7 +367,7 @@ struct SidebarView: View {
                 HStack {
                     Text(tr("Places"))
                     Spacer()
-                    if !library.filter.selectedPlaces.isEmpty {
+                    if !snap.selectedPlaces.isEmpty {
                         Button(tr("Clear")) {
                             library.filter.selectedPlaces = []
                             library.revealSelection()
@@ -348,7 +381,7 @@ struct SidebarView: View {
     }
 
     private func placeRow(_ place: FacetCount) -> some View {
-        let isOn = library.filter.selectedPlaces.contains(place.name)
+        let isOn = snap.selectedPlaces.contains(place.name)
         return Button {
             library.selectPlace(place.name, additive: NSEvent.modifierFlags.contains(.command))
         } label: {
@@ -393,17 +426,17 @@ struct SidebarView: View {
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
-            .fontWeight(library.filter.smartAlbum == album ? .semibold : .regular)
+            .fontWeight(snap.smartAlbum == album ? .semibold : .regular)
         }
         .buttonStyle(.plain)
     }
 
     private func countText(for album: SmartAlbum) -> String {
         switch album {
-        case .all: "\(library.photos.count)"
-        case .rating(let value): "\(library.markCounts.atLeast[min(max(value, 0), 5)])"
-        case .color(let label): "\(library.colorCount(label))"
-        case .pick(let status): "\(library.markCounts.picks[status] ?? 0)"
+        case .all: "\(snap.photoCount)"
+        case .rating(let value): "\(snap.markCounts.atLeast[min(max(value, 0), 5)])"
+        case .color(let label): "\(snap.markCounts.colors[label] ?? 0)"
+        case .pick(let status): "\(snap.markCounts.picks[status] ?? 0)"
         }
     }
 }

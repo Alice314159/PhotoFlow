@@ -104,6 +104,7 @@ extension PhotoLibrary {
         var newSelection = selectedID
         var renamed = 0
         var renames: [String: String] = [:]
+        var pathUpdates: [(String, String)] = []
 
         for (offset, photo) in items.enumerated() {
             let ext = photo.url.pathExtension
@@ -123,7 +124,7 @@ extension PhotoLibrary {
                     let oldPath = nextPhotos[index].filePath
                     nextPhotos[index].filePath = unique.path
                     let newPath = unique.path
-                    database.write { $0.updatePath(from: oldPath, to: newPath) }
+                    pathUpdates.append((oldPath, newPath))
                     renames[oldPath] = unique.path
                 }
                 if photo.id == selectedID {
@@ -139,6 +140,11 @@ extension PhotoLibrary {
         photos = nextPhotos
         selectedID = newSelection
         checkedIDs = nextChecked
+        if !pathUpdates.isEmpty {
+            let updates = pathUpdates
+            database.write { $0.updatePaths(updates) }
+            database.waitForWrites()
+        }
         if !renames.isEmpty {
             collections = collections.map { collection in
                 var updated = collection

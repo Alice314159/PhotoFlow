@@ -14,7 +14,7 @@ Original files are never modified. Ratings, color labels, pick flags, and cached
 - Combined filters: brand + body + lens + shutter + aperture + ISO + focal length + rating + color + pick
 - Sort by filename, capture date, rating, or pick
 - Lightroom-style 0–5 stars
-- User-defined color label names
+- Color labels (6–9 / −); right-click a color in the sidebar to give it a meaning (Maybe, Keep…)
 - Pick / Reject / Unflag, with optional auto-advance
 - Export picked or visible photos as copies
 - 14 skins: Adobe-style (Lightroom Classic, Photoshop, Adobe Light, Neutral 18% Gray), dark and light themes; switch from the Skin menu, the toolbar palette, Settings, or `⌥⌘K`

@@ -112,6 +112,29 @@ struct FilterStateTests {
         #expect(!PhotoSort.filename.dependsOnMarks)
         #expect(!PhotoSort.captureDate.dependsOnMarks)
     }
+
+    @Test func markDeltaStoresOnlyMarks() {
+        var item = photo("/a.jpg", rating: 4, pick: .picked, color: .red)
+        item.camera = "huge metadata that undo must not copy"
+        let delta = MarkDelta(item)
+        #expect(delta.id == "/a.jpg")
+        #expect(delta.rating == 4)
+        #expect(delta.colorLabel == .red)
+        #expect(delta.pickStatus == .picked)
+    }
+
+    @Test func searchTypingIsIsolatedFromOtherFilters() {
+        var typed = FilterState()
+        typed.searchText = "鸟"
+        var other = typed
+        other.minimumRating = 3
+        #expect(typed.differsOnlyInSearch(from: FilterState()))
+        #expect(!typed.differsOnlyInSearch(from: other))
+        #expect(typed.dependsOnContent)
+        #expect(!FilterState().dependsOnContent)
+        #expect(typed.erasingSearch().searchText.isEmpty)
+        #expect(typed.erasingSearch() == typed.erasingSearch())
+    }
 }
 
 @Suite("Exposure values")

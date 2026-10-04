@@ -2,6 +2,12 @@ import SwiftUI
 
 struct TopBarView: View {
     @ObservedObject var library: PhotoLibrary
+    @ObservedObject var searchBox: SearchBox
+
+    init(library: PhotoLibrary) {
+        _library = ObservedObject(wrappedValue: library)
+        _searchBox = ObservedObject(wrappedValue: library.searchBox)
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -39,13 +45,7 @@ struct TopBarView: View {
 
             searchField
 
-            if library.isExporting {
-                ProgressView()
-                    .controlSize(.small)
-                Text(tr("Exporting…"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            ExportStatusChip(activity: library.activity)
 
             Spacer(minLength: 8)
 
@@ -128,13 +128,16 @@ struct TopBarView: View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
-            TextField(tr("Search: 鸟, 风景, 上海, 2024, Sony…"), text: $library.filter.searchText)
+            TextField(tr("Search: 鸟, 风景, 上海, 2024, Sony…"), text: $searchBox.text)
                 .textFieldStyle(.plain)
                 .onSubmit { library.resignTextFocus() }
+                .onChange(of: searchBox.text) { _, text in
+                    library.setSearchText(text)
+                }
                 .help(tr("Search content (鸟, 狗, 海边, 风景, sunset), places (上海, Yosemite), folder or file names, camera and lens, or dates (2024-10, 2024年10月). Separate words with spaces to narrow down: “鸟 上海”."))
-            if !library.filter.searchText.isEmpty {
+            if !searchBox.text.isEmpty {
                 Button {
-                    library.filter.searchText = ""
+                    library.setSearchText("")
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
@@ -224,5 +227,19 @@ struct TopBarView: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .help(tr("Panels"))
+    }
+}
+
+private struct ExportStatusChip: View {
+    @ObservedObject var activity: LibraryActivity
+
+    var body: some View {
+        if activity.isExporting {
+            ProgressView()
+                .controlSize(.small)
+            Text(tr("Exporting…"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 }

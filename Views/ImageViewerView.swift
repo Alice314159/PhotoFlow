@@ -1,7 +1,14 @@
 import SwiftUI
 
-struct ImageViewerView: View {
-    @ObservedObject var library: PhotoLibrary
+struct ImageViewerView: View, Equatable {
+    let library: PhotoLibrary
+    @ObservedObject var browser: LibraryBrowser
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.library === rhs.library && lhs.browser === rhs.browser
+    }
+
+    private var selectedPhoto: PhotoItem? { library.selectedPhoto }
     private var scale = State(initialValue: CGFloat(1))
     private var offset = State(initialValue: CGSize.zero)
     private var dragOrigin = State(initialValue: CGSize.zero)
@@ -15,18 +22,26 @@ struct ImageViewerView: View {
 
     /// Screen pixels per image pixel at Fit, from the stored dimensions.
     private var fitPixelRatio: CGFloat? {
-        guard let photo = library.selectedPhoto, let w = photo.width, let h = photo.height, w > 0, h > 0 else {
+        guard let photo = selectedPhoto, let w = photo.width, let h = photo.height, w > 0, h > 0 else {
             return nil
         }
         let size = canvasSize.wrappedValue
         let fitPoints = min((size.width - 32) / CGFloat(w), (size.height - 32) / CGFloat(h))
         guard fitPoints > 0 else { return nil }
-        return fitPoints * (NSScreen.main?.backingScaleFactor ?? 2)
+        return fitPoints * windowBackingScale
     }
 
     /// The zoom factor (relative to Fit) that shows one image pixel per screen pixel.
     private var actualPixelsScale: CGFloat? {
         fitPixelRatio.map { 1 / $0 }
+    }
+
+    /// The window's screen, not `NSScreen.main` — 1:1 is wrong on a second display otherwise.
+    private var windowBackingScale: CGFloat {
+        NSApp.keyWindow?.backingScaleFactor
+            ?? NSApp.mainWindow?.backingScaleFactor
+            ?? NSScreen.main?.backingScaleFactor
+            ?? 2
     }
 
     private var zoomLabel: String {
@@ -40,20 +55,22 @@ struct ImageViewerView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                library.skin.palette.canvas
+                browser.skin.palette.canvas
 
-                if let photo = library.selectedPhoto {
+                if let photo = selectedPhoto, photo.availability != .available {
+                    unavailableState(photo)
+                } else if let photo = selectedPhoto {
                     loupe(photo)
                     ScrollZoomMonitor { delta, anchor in
                         applyScrollZoom(delta, anchor: anchor)
                     }
                     navigationOverlay
                     zoomControls
-                    if !library.showInfoBar {
+                    if !browser.showInfoBar {
                         positionBadge(photo)
                     }
-                } else if library.isLoading {
-                    ProgressView(library.scanProgress)
+                } else if browser.isLoading {
+                    ProgressView(browser.scanProgress)
                 } else {
                     emptyState
                 }
@@ -67,11 +84,11 @@ struct ImageViewerView: View {
             }
         }
         .onHover { isHovering.wrappedValue = $0 }
-        .onChange(of: library.selectedID) { _, _ in
+        .onChange(of: browser.selectedID) { _, _ in
             resetZoom()
         }
-        .onChange(of: library.zoomCommand) { _, command in
-            guard let command, library.selectedPhoto != nil else { return }
+        .onChange(of: browser.zoomCommand) { _, command in
+            guard let command, selectedPhoto != nil else { return }
             withAnimation(.easeInOut(duration: 0.18)) {
                 switch command.kind {
                 case .toggle: toggleZoom()
@@ -234,6 +251,27 @@ struct ImageViewerView: View {
             Spacer()
         }
         .allowsHitTesting(false)
+    }
+
+    private func unavailableState(_ photo: PhotoItem) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: photo.availability == .missing ? "questionmark.folder" : "lock.fill")
+                .font(.system(size: 42))
+                .foregroundStyle(.secondary)
+            Text(photo.availability == .missing ? tr("Missing") : tr("No access"))
+                .font(.title3.weight(.semibold))
+            Text(photo.availability == .missing
+                 ? tr("This file is no longer on disk. The collection still points at it.")
+                 : tr("PhotoFlow can’t read this file. Open its folder to grant access."))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 420)
+            if photo.availability == .noAccess {
+                Button(tr("Grant Folder Access…")) { library.grantFolderAccess(for: photo) }
+            }
+            Button(tr("Reveal in Finder")) { library.revealBatchInFinder() }
+        }
+        .padding(32)
     }
 
     @ViewBuilder

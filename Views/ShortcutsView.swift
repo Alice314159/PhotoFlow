@@ -72,7 +72,7 @@ struct ShortcutsView: View {
             Shortcut(keys: "鸟 上海 2024", action: tr("Search: all words must match")),
         ]),
         ShortcutGroup(title: tr("Files"), items: [
-            Shortcut(keys: "⌘O  ·  ⇧⌘I", action: tr("Open folder (Import)")),
+            Shortcut(keys: "⌘O", action: tr("Open Folder…")),
             Shortcut(keys: "⇧⌘E", action: tr("Export…")),
             Shortcut(keys: "⇧⌘S", action: tr("Save As…")),
             Shortcut(keys: "F2", action: tr("Rename…")),

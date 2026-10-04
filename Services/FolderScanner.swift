@@ -2,10 +2,34 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-struct ScannedFile: Sendable {
+struct ScannedFile: Sendable, Equatable {
     let url: URL
     let modificationDate: Date?
     let fileSize: Int64?
+    var availability: FileAvailability = .available
+}
+
+/// Added / removed / edited files between a loaded library and a fresh folder scan.
+struct FolderDiff: Equatable {
+    var added: [ScannedFile] = []
+    var removedIDs: [String] = []
+    var staleDates: [String: Date] = [:]
+
+    var isEmpty: Bool { added.isEmpty && removedIDs.isEmpty && staleDates.isEmpty }
+
+    static func between(known: [PhotoItem], scanned: [ScannedFile]) -> FolderDiff {
+        let found = Set(scanned.map(\.url.path))
+        let byID = Dictionary(uniqueKeysWithValues: known.map { ($0.id, $0) })
+        var diff = FolderDiff()
+        diff.added = scanned.filter { byID[$0.url.path] == nil }
+        diff.removedIDs = known.filter { !found.contains($0.id) }.map(\.id)
+        for file in scanned {
+            guard let existing = byID[file.url.path], let date = file.modificationDate else { continue }
+            if let old = existing.fileModificationDate, abs(old.timeIntervalSince(date)) <= 1 { continue }
+            diff.staleDates[existing.id] = date
+        }
+        return diff
+    }
 }
 
 /// Which files PhotoFlow shows: everything ImageIO can decode on this Mac, plus every
@@ -85,16 +109,25 @@ enum ImageFormats {
 }
 
 final class FolderScanner: Sendable {
-    /// Files referenced by a collection; missing ones are skipped.
+    /// Files referenced by a collection. Missing or unreadable paths stay in the list.
     static func files(atPaths paths: Set<String>) -> [ScannedFile] {
-        paths.compactMap { path -> ScannedFile? in
+        paths.map { path -> ScannedFile in
             let url = URL(fileURLWithPath: path)
-            guard let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .contentModificationDateKey, .fileSizeKey]),
-                  values.isRegularFile == true else { return nil }
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), !isDirectory.boolValue else {
+                return ScannedFile(url: url, modificationDate: nil, fileSize: nil, availability: .missing)
+            }
+            guard FileManager.default.isReadableFile(atPath: path) else {
+                return ScannedFile(url: url, modificationDate: nil, fileSize: nil, availability: .noAccess)
+            }
+            let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .contentModificationDateKey, .fileSizeKey])
+            guard values?.isRegularFile == true else {
+                return ScannedFile(url: url, modificationDate: nil, fileSize: nil, availability: .missing)
+            }
             return ScannedFile(
                 url: url,
-                modificationDate: values.contentModificationDate,
-                fileSize: values.fileSize.map(Int64.init)
+                modificationDate: values?.contentModificationDate,
+                fileSize: values?.fileSize.map(Int64.init)
             )
         }
         .sorted { $0.url.lastPathComponent.localizedStandardCompare($1.url.lastPathComponent) == .orderedAscending }

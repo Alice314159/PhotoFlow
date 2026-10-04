@@ -1,23 +1,28 @@
 import AppKit
 import SwiftUI
 
-struct ThumbnailGridView: View {
-    @ObservedObject var library: PhotoLibrary
+struct ThumbnailGridView: View, Equatable {
+    let library: PhotoLibrary
+    @ObservedObject var browser: LibraryBrowser
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.library === rhs.library && lhs.browser === rhs.browser
+    }
 
     var body: some View {
-        let size = library.gridThumbnailSize.rounded()
+        let size = browser.gridThumbnailSize.rounded()
         let columns = [GridItem(.adaptive(minimum: size, maximum: size + 40), spacing: 10)]
         return ScrollViewReader { proxy in
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 10) {
-                    ForEach(library.filteredPhotos) { photo in
+                    ForEach(browser.filteredPhotos) { photo in
                         ThumbnailCell(
                             photo: photo,
-                            isSelected: library.selectedID == photo.id,
-                            isChecked: library.isChecked(photo),
+                            isSelected: browser.selectedID == photo.id,
+                            isChecked: browser.checkedIDs.contains(photo.id),
                             width: size,
                             height: (size * 0.71).rounded(),
-                            inTargetCollection: library.isInTargetCollection(photo),
+                            inTargetCollection: browser.isInTarget(photo),
                             onToggleCheck: { library.toggleChecked(photo) }
                         )
                         .id(photo.id)
@@ -43,11 +48,11 @@ struct ThumbnailGridView: View {
                 }
                 .padding(14)
             }
-            .onChange(of: library.selectedID) { _, id in
+            .onChange(of: browser.selectedID) { _, id in
                 guard let id else { return }
                 proxy.scrollTo(id, anchor: .center)
             }
         }
-        .background(library.skin.palette.canvas)
+        .background(browser.skin.palette.canvas)
     }
 }

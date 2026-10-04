@@ -1,12 +1,27 @@
 import SwiftUI
 
-struct InspectorPanelView: View {
-    @ObservedObject var library: PhotoLibrary
+struct InspectorPanelView: View, Equatable {
+    let library: PhotoLibrary
+    @ObservedObject var filters: LibraryFilters
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.library === rhs.library && lhs.filters === rhs.filters
+    }
+
+    init(library: PhotoLibrary) {
+        self.library = library
+        _filters = ObservedObject(wrappedValue: library.filters)
+    }
+
+    private var snap: LibraryFilters.Snapshot { filters.snapshot }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                Picker(tr("Inspector"), selection: $library.inspectorTab) {
+                Picker(tr("Inspector"), selection: Binding(
+                    get: { snap.inspectorTab },
+                    set: { library.inspectorTab = $0 }
+                )) {
                     ForEach(InspectorTab.allCases) { tab in
                         Text(title(for: tab)).tag(tab)
                     }
@@ -25,19 +40,20 @@ struct InspectorPanelView: View {
             Divider()
 
             Group {
-                if library.inspectorTab == .filter {
+                if snap.inspectorTab == .filter {
                     FilterPanelView(library: library)
+                        .equatable()
                 } else {
                     MetadataInspectorView(library: library)
                 }
             }
         }
         .frame(minWidth: 240, idealWidth: 268, maxWidth: 300)
-        .background(library.skin.palette.panel)
+        .background(snap.skin.palette.panel)
     }
 
     private func title(for tab: InspectorTab) -> String {
-        let count = library.filter.activeCount
+        let count = snap.filter.activeCount
         return tab == .filter && count > 0 ? "\(tab.title) · \(count)" : tab.title
     }
 }

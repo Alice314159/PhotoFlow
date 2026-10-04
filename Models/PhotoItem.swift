@@ -33,6 +33,7 @@ struct PhotoItem: Identifiable, Hashable {
     /// Every name for the place in Chinese and English, for search.
     var placeText: String?
     var locationChecked = false
+    var availability: FileAvailability = .available
 
     var id: String { filePath }
     var url: URL { URL(fileURLWithPath: filePath) }
@@ -62,6 +63,27 @@ struct PhotoItem: Identifiable, Hashable {
     var hasUserMarks: Bool {
         rating > 0 || colorLabel != .none || pickStatus != .none
     }
+}
+
+/// Only the marks undo cares about — not the whole photo row.
+struct MarkDelta: Equatable, Sendable {
+    var id: String
+    var rating: Int
+    var colorLabel: ColorLabel
+    var pickStatus: PickStatus
+
+    init(_ photo: PhotoItem) {
+        id = photo.id
+        rating = photo.rating
+        colorLabel = photo.colorLabel
+        pickStatus = photo.pickStatus
+    }
+}
+
+enum FileAvailability: String, Hashable {
+    case available
+    case missing
+    case noAccess
 }
 
 enum CameraBrand {

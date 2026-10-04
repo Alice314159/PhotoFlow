@@ -40,16 +40,12 @@ struct ContentView: View {
             ShortcutsView(library: library)
         }
         .sheet(isPresented: $library.showExportSheet) {
-            BatchExportView(library: library)
+            BatchExportView(library: library, activity: library.activity)
         }
         .sheet(isPresented: $library.showRenameSheet) {
             BatchRenameView(library: library)
         }
-        .alert(tr("PhotoFlow"), isPresented: exportAlert) {
-            Button(tr("OK"), role: .cancel) { library.exportNote = nil }
-        } message: {
-            Text(library.exportNote ?? "")
-        }
+        .background { LibraryActivityAlerts(activity: library.activity) }
         .environment(\.appSkin, library.skin)
         .preferredColorScheme(library.skin.colorScheme)
         .tint(library.skin.palette.accent)
@@ -70,25 +66,17 @@ struct ContentView: View {
     private var viewer: some View {
         Group {
             if library.viewMode == .grid {
-                ThumbnailGridView(library: library)
+                ThumbnailGridView(library: library, browser: library.browser)
+                    .equatable()
             } else {
-                ImageViewerView(library: library)
+                ImageViewerView(library: library, browser: library.browser)
+                    .equatable()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .top) {
-            if let note = library.copyNote {
-                Label(note, systemImage: "doc.on.clipboard")
-                    .font(.callout.weight(.medium))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(.regularMaterial, in: Capsule())
-                    .padding(.top, 48)
-                    .transition(.opacity)
-                    .allowsHitTesting(false)
-            }
+            LibraryCopyToast(activity: library.activity)
         }
-        .animation(.easeInOut(duration: 0.2), value: library.copyNote)
         .contentShape(Rectangle())
         .simultaneousGesture(
             TapGesture().onEnded { library.resignTextFocus() }
@@ -103,6 +91,7 @@ struct ContentView: View {
                     library.showSidebar = false
                 }
                 SidebarView(library: library)
+                    .equatable()
             }
             .frame(width: 220)
             .background(library.skin.palette.panel)
@@ -121,6 +110,7 @@ struct ContentView: View {
         Divider()
         if library.showFilterPanel {
             InspectorPanelView(library: library)
+                .equatable()
                 .transition(.move(edge: .trailing))
         } else {
             EdgeRail(edge: .trailing, title: library.inspectorTab.title) {
@@ -143,7 +133,8 @@ struct ContentView: View {
                         .font(.system(size: 10).monospacedDigit())
                         .foregroundStyle(.tertiary)
                 }
-                FilmstripView(library: library)
+                FilmstripView(library: library, browser: library.browser)
+                    .equatable()
             }
             .background(library.skin.palette.chrome)
             .transition(.move(edge: .bottom))
@@ -171,10 +162,41 @@ struct ContentView: View {
         }
     }
 
-    private var exportAlert: Binding<Bool> {
-        Binding(
-            get: { library.exportNote != nil },
-            set: { if !$0 { library.exportNote = nil } }
-        )
+}
+
+private struct LibraryActivityAlerts: View {
+    @ObservedObject var activity: LibraryActivity
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .alert(tr("PhotoFlow"), isPresented: Binding(
+                get: { activity.exportNote != nil },
+                set: { if !$0 { activity.exportNote = nil } }
+            )) {
+                Button(tr("OK"), role: .cancel) { activity.exportNote = nil }
+            } message: {
+                Text(activity.exportNote ?? "")
+            }
+    }
+}
+
+private struct LibraryCopyToast: View {
+    @ObservedObject var activity: LibraryActivity
+
+    var body: some View {
+        Group {
+            if let note = activity.copyNote {
+                Label(note, systemImage: "doc.on.clipboard")
+                    .font(.callout.weight(.medium))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(.regularMaterial, in: Capsule())
+                    .padding(.top, 48)
+                    .transition(.opacity)
+                    .allowsHitTesting(false)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: activity.copyNote)
     }
 }

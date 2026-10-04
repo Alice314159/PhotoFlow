@@ -114,7 +114,7 @@ extension PhotoLibrary {
             }
             return
         }
-        zoomCommand = ZoomCommand(kind: kind)
+        browser.zoomCommand = ZoomCommand(kind: kind)
     }
 
     func adjustGridSize(by delta: Double) {

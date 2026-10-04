@@ -44,9 +44,10 @@ extension PhotoLibrary {
                 guard !buffer.isEmpty else { return }
                 let batch = buffer
                 buffer.removeAll()
-                database.saveAnalyses(batch.map {
+                let rows = batch.map {
                     ($0.0, $0.1.categories, $0.1.labels, $0.1.faceCount, PhotoClassifier.version, false)
-                })
+                }
+                database.write { $0.saveAnalyses(rows) }
                 await MainActor.run { self.applyAnalyses(batch) }
             }
 
@@ -103,6 +104,7 @@ extension PhotoLibrary {
             next[index].contentLabels = analysis.labels
             next[index].isAnalyzed = true
         }
+        contentOnlyChange = batch.map(\.0)
         photos = next
         analysisDone = min(analysisDone + batch.count, analysisTotal)
     }
@@ -129,6 +131,7 @@ extension PhotoLibrary {
             next[index].categoriesEditedByUser = true
             saved.append((target.id, groups, next[index].contentLabels, 0, PhotoClassifier.version, true))
         }
+        contentOnlyChange = saved.map(\.path)
         photos = next
         let rows = saved
         database.write { $0.saveAnalyses(rows) }
@@ -182,7 +185,8 @@ extension PhotoLibrary {
                     let coordinate = LocationService.coordinate(of: url)
                     rows.append((url.path, .init(latitude: coordinate?.latitude, longitude: coordinate?.longitude)))
                 }
-                database.saveLocations(rows.map { ($0.0, $0.1, false) })
+                let stored = rows.map { ($0.0, $0.1, false) }
+                database.write { $0.saveLocations(stored) }
                 return rows
             }.value
             guard !Task.isCancelled else { return }
@@ -203,11 +207,15 @@ extension PhotoLibrary {
         var failures = 0
         for (cell, group) in cells {
             if Task.isCancelled { return }
-            var place = database.cachedPlace(cell: cell)
+            var place = await Task.detached { [database] in database.cachedPlace(cell: cell) }.value
             if place == nil {
                 do {
                     place = try await LocationService.placeNames(for: .init(latitude: group.latitude, longitude: group.longitude))
-                    if let place { database.cachePlace(cell: cell, name: place.name, text: place.text) }
+                    if let place {
+                        let name = place.name
+                        let text = place.text
+                        database.write { $0.cachePlace(cell: cell, name: name, text: text) }
+                    }
                     // Apple's geocoder throttles bursts.
                     try await Task.sleep(for: .milliseconds(1200))
                 } catch {
@@ -225,7 +233,8 @@ extension PhotoLibrary {
                 let rows = group.paths.map {
                     ($0, PhotoDatabase.StoredLocation(latitude: group.latitude, longitude: group.longitude, placeName: place.name, placeText: place.text))
                 }
-                database.saveLocations(rows.map { ($0.0, $0.1, false) })
+                let stored = rows.map { ($0.0, $0.1, false) }
+                database.write { $0.saveLocations(stored) }
                 applyLocations(rows)
             }
             placeLookupDone += 1
@@ -245,6 +254,7 @@ extension PhotoLibrary {
             next[index].placeText = location.placeText
             next[index].locationChecked = true
         }
+        contentOnlyChange = rows.map(\.0)
         photos = next
     }
 
@@ -325,10 +335,11 @@ extension PhotoLibrary {
     func reloadCollections() {
         database.waitForWrites()
         collections = database.loadCollections()
+        refreshTargetPaths()
     }
 
     func isInTargetCollection(_ photo: PhotoItem) -> Bool {
-        targetCollection?.paths.contains(photo.filePath) ?? false
+        targetCollectionPaths.contains(photo.filePath)
     }
 
     /// Shows a collection's photos, wherever they live on disk.
@@ -347,13 +358,17 @@ extension PhotoLibrary {
         filter.clear()
         filter.smartAlbum = .all
 
+        startStoredFolderAccess()
         let paths = collection.paths
         loadTask = Task { [weak self] in
             let files = await Task.detached { FolderScanner.files(atPaths: paths) }.value
             guard !Task.isCancelled else { return }
             await self?.loadFiles(files)
-            if let self, files.count < paths.count {
-                self.flashCopyNote(tr("%@ photos in this collection are missing on disk", paths.count - files.count))
+            if let self {
+                let missing = files.filter { $0.availability != .available }.count
+                if missing > 0 {
+                    self.flashCopyNote(tr("%@ photos in this collection are missing or can’t be opened", missing))
+                }
             }
         }
     }
@@ -374,8 +389,17 @@ extension PhotoLibrary {
     @discardableResult
     func createCollection(named name: String, paths: [String] = []) -> Int64? {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let id = database.createCollection(named: trimmed) else { return nil }
-        database.addToCollection(id, paths: paths)
+        guard !trimmed.isEmpty else { return nil }
+        final class CreatedID: @unchecked Sendable { var value: Int64? }
+        let created = CreatedID()
+        database.write { db in
+            created.value = db.createCollection(named: trimmed)
+            if let id = created.value, !paths.isEmpty {
+                db.addToCollection(id, paths: paths)
+            }
+        }
+        database.waitForWrites()
+        guard let id = created.value else { return nil }
         reloadCollections()
         if targetCollectionID == nil { targetCollectionID = id }
         return id
@@ -401,7 +425,7 @@ extension PhotoLibrary {
         else { return }
         let trimmed = result.name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        database.renameCollection(id, to: trimmed)
+        database.write { $0.renameCollection(id, to: trimmed) }
         reloadCollections()
     }
 
@@ -415,7 +439,7 @@ extension PhotoLibrary {
         alert.buttons.first?.hasDestructiveAction = true
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
-        database.deleteCollection(id)
+        database.write { $0.deleteCollection(id) }
         if targetCollectionID == id { targetCollectionID = nil }
         let wasActive = activeCollectionID == id
         reloadCollections()
@@ -433,6 +457,7 @@ extension PhotoLibrary {
         let before = next[index].paths.count
         next[index].paths.formUnion(paths)
         collections = next
+        refreshTargetPaths()
         let added = next[index].paths.count - before
         flashCopyNote(added == 0 ? tr("Already in “%@”", next[index].name) : tr("Added %@ to “%@”", added, next[index].name))
     }
@@ -443,6 +468,7 @@ extension PhotoLibrary {
         var next = collections
         next[index].paths.subtract(paths)
         collections = next
+        refreshTargetPaths()
         if activeCollectionID == id {
             let removed = Set(paths)
             let current = selectedVisibleIndex ?? 0
@@ -511,6 +537,7 @@ extension PhotoLibrary {
         }
         let images = urls.filter { ImageFormats.supportedExtensions.contains($0.pathExtension.lowercased()) }
         guard !images.isEmpty else { return false }
+        for url in images { rememberFolderAccess(url) }
         add(paths: images.map(\.path), to: id)
         return true
     }

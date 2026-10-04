@@ -48,9 +48,33 @@ struct ColorLabelNames: Codable, Equatable {
         }
     }
 
+    func isCustom(_ label: ColorLabel) -> Bool {
+        label != .none && stored(label) != label.defaultName
+    }
+
+    /// Everything a search term may match for this label: the custom name plus the built-in
+    /// English and Chinese color names, so "red" and "红色" keep working after a rename.
+    func searchNames(for label: ColorLabel) -> [String] {
+        guard label != .none else { return [] }
+        return [stored(label), name(for: label), label.defaultName, L10n.chinese[label.defaultName] ?? ""]
+            .map { $0.lowercased() }
+            .filter { !$0.isEmpty }
+    }
+
+    private func stored(_ label: ColorLabel) -> String {
+        switch label {
+        case .none: ""
+        case .red: red
+        case .yellow: yellow
+        case .green: green
+        case .blue: blue
+        case .purple: purple
+        }
+    }
+
     mutating func setName(_ name: String, for label: ColorLabel) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let value = trimmed.isEmpty ? label.defaultName : trimmed
+        let value = trimmed.isEmpty || trimmed == tr(label.defaultName) ? label.defaultName : trimmed
         switch label {
         case .none: break
         case .red: red = value

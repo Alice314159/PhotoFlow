@@ -1,14 +1,23 @@
 import SwiftUI
-struct FilterPanelView: View {
-    @ObservedObject var library: PhotoLibrary
+struct FilterPanelView: View, Equatable {
+    let library: PhotoLibrary
+    @ObservedObject var filters: LibraryFilters
 
     private var gearQuery = State(initialValue: "")
     private var expandedBrands = State(initialValue: Set<String>())
     private var showAllBrands = State(initialValue: false)
     private var showAllLenses = State(initialValue: false)
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.library === rhs.library && lhs.filters === rhs.filters
+    }
+
     init(library: PhotoLibrary) {
         self.library = library
+        _filters = ObservedObject(wrappedValue: library.filters)
     }
+
+    private var snap: LibraryFilters.Snapshot { filters.snapshot }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -22,33 +31,19 @@ struct FilterPanelView: View {
             }
 
             Divider()
-            HStack {
-                Text(library.filter.isActive
-                     ? tr("%@ shown", library.filteredPhotos.count)
-                     : tr("%@ photos", library.photos.count))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button(tr("Clear")) {
-                    library.clearFilters()
-                }
-                .disabled(!library.filter.isActive)
-                .controlSize(.small)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            FilterStatusBar(library: library, searchBox: library.searchBox, snap: snap)
         }
     }
 
     private var metadataGroup: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if library.cameraFacets.count + library.lensFacets.count > 4 {
+            if snap.cameraFacets.count + snap.lensFacets.count > 4 {
                 gearSearchField
             }
-            if !library.filter.selectedCategories.isEmpty || !library.filter.selectedPlaces.isEmpty {
+            if !snap.filter.selectedCategories.isEmpty || !snap.filter.selectedPlaces.isEmpty {
                 sidebarSelectionSection
             }
-            if library.kindFacets.count > 1 {
+            if snap.kindFacets.count > 1 {
                 fileTypeSection
             }
             cameraSection
@@ -58,8 +53,8 @@ struct FilterPanelView: View {
 
     /// Groups and places are chosen in the sidebar; this only shows that they are narrowing the results.
     private var sidebarSelectionSection: some View {
-        let categories = PhotoCategory.allCases.filter { library.filter.selectedCategories.contains($0) }
-        let places = library.filter.selectedPlaces.sorted()
+        let categories = PhotoCategory.allCases.filter { snap.filter.selectedCategories.contains($0) }
+        let places = snap.filter.selectedPlaces.sorted()
         return FilterSection(tr("From Sidebar")) {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 80), spacing: 4)], alignment: .leading, spacing: 4) {
                 ForEach(categories) { category in
@@ -98,7 +93,7 @@ struct FilterPanelView: View {
             .font(.system(size: 11))
             .padding(.horizontal, 6)
             .frame(minHeight: 20)
-            .background(library.skin.palette.accent.opacity(0.22), in: Capsule())
+            .background(snap.skin.palette.accent.opacity(0.22), in: Capsule())
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -106,10 +101,10 @@ struct FilterPanelView: View {
     }
 
     private var fileTypeSection: some View {
-        let selected = library.filter.selectedKinds
+        let selected = snap.filter.selectedKinds
         return FilterSection(tr("File Type")) {
             VStack(alignment: .leading, spacing: 1) {
-                ForEach(library.kindFacets) { kind in
+                ForEach(snap.kindFacets) { kind in
                     FacetRow(
                         title: kind.name,
                         count: kind.count,
@@ -154,8 +149,8 @@ struct FilterPanelView: View {
     }
 
     private var cameraSection: some View {
-        let filter = library.filter
-        let all = library.cameraFacets
+        let filter = snap.filter
+        let all = snap.cameraFacets
         let matching = query.isEmpty ? all : all.filter { facet in
             facet.brand.localizedCaseInsensitiveContains(query)
                 || facet.models.contains { $0.name.localizedCaseInsensitiveContains(query) }
@@ -223,8 +218,8 @@ struct FilterPanelView: View {
                 FacetRow(
                     title: model.name,
                     count: model.count,
-                    state: library.filter.selectedBrands.contains(facet.brand)
-                        || library.filter.selectedCameras.contains(model.name) ? .on : .off,
+                    state: snap.filter.selectedBrands.contains(facet.brand)
+                        || snap.filter.selectedCameras.contains(model.name) ? .on : .off,
                     indent: 22,
                     action: { toggleModel(model.name, of: facet) }
                 )
@@ -233,10 +228,10 @@ struct FilterPanelView: View {
     }
 
     private var lensSection: some View {
-        let all = library.lensFacets
+        let all = snap.lensFacets
         let matching = query.isEmpty ? all : all.filter { $0.name.localizedCaseInsensitiveContains(query) }
         let limit = 6
-        let selected = library.filter.selectedLenses
+        let selected = snap.filter.selectedLenses
         let shown = query.isEmpty && !showAllLenses.wrappedValue
             ? matching.enumerated().filter { $0.offset < limit || selected.contains($0.element.name) }.map(\.element)
             : matching
@@ -270,8 +265,8 @@ struct FilterPanelView: View {
     }
 
     private func brandState(_ facet: CameraFacet) -> FacetRow.CheckState {
-        if library.filter.selectedBrands.contains(facet.brand) { return .on }
-        let picked = facet.models.filter { library.filter.selectedCameras.contains($0.name) }.count
+        if snap.filter.selectedBrands.contains(facet.brand) { return .on }
+        let picked = facet.models.filter { snap.filter.selectedCameras.contains($0.name) }.count
         if picked == 0 { return .off }
         return picked == facet.models.count ? .on : .mixed
     }
@@ -314,7 +309,7 @@ struct FilterPanelView: View {
         } label: {
             Text(showAll.wrappedValue ? tr("Show fewer") : title)
                 .font(.system(size: 11))
-                .foregroundStyle(library.skin.palette.accent)
+                .foregroundStyle(snap.skin.palette.accent)
                 .padding(.leading, 22)
                 .padding(.top, 3)
         }
@@ -325,7 +320,7 @@ struct FilterPanelView: View {
         Button(tr("Clear"), action: action)
             .buttonStyle(.plain)
             .font(.system(size: 10))
-            .foregroundStyle(library.skin.palette.accent)
+            .foregroundStyle(snap.skin.palette.accent)
     }
 
     private func emptyText(_ text: String) -> some View {
@@ -344,28 +339,28 @@ struct FilterPanelView: View {
         VStack(alignment: .leading, spacing: 12) {
             RangeFilterRow(
                 title: tr("Shutter"),
-                range: library.bounds.shutter,
-                selection: $library.filter.shutter,
+                range: snap.bounds.shutter,
+                selection: rangeBinding(\.shutter),
                 usesLog: true,
                 format: ExposureFormat.shutterLabel
             )
             RangeFilterRow(
                 title: tr("Aperture"),
-                range: library.bounds.aperture,
-                selection: $library.filter.aperture,
+                range: snap.bounds.aperture,
+                selection: rangeBinding(\.aperture),
                 format: ExposureFormat.apertureLabel
             )
             RangeFilterRow(
                 title: tr("ISO"),
-                range: library.bounds.iso,
-                selection: $library.filter.iso,
+                range: snap.bounds.iso,
+                selection: rangeBinding(\.iso),
                 usesLog: true,
                 format: { "\(Int($0.rounded()))" }
             )
             RangeFilterRow(
                 title: tr("Focal Length"),
-                range: library.bounds.focalLength,
-                selection: $library.filter.focalLength,
+                range: snap.bounds.focalLength,
+                selection: rangeBinding(\.focalLength),
                 format: ExposureFormat.focalLabel
             )
         }
@@ -376,14 +371,14 @@ struct FilterPanelView: View {
             FilterSection(tr("Rating")) {
                 HStack(spacing: 8) {
                     RatingStarsView(
-                        rating: library.filter.minimumRating,
+                        rating: snap.filter.minimumRating,
                         size: 15,
                         interactive: true
                     ) { value in
-                        library.filter.minimumRating = library.filter.minimumRating == value ? 0 : value
+                        library.filter.minimumRating = snap.filter.minimumRating == value ? 0 : value
                         library.filter.smartAlbum = library.filter.minimumRating == 0 ? .all : .rating(library.filter.minimumRating)
                     }
-                    Text(library.filter.minimumRating == 0 ? tr("Any") : "\(library.filter.minimumRating)+")
+                    Text(snap.filter.minimumRating == 0 ? tr("Any") : "\(snap.filter.minimumRating)+")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -392,14 +387,14 @@ struct FilterPanelView: View {
             FilterSection(tr("Color")) {
                 HStack(spacing: 8) {
                     ForEach(ColorLabel.assigned) { label in
-                        let selected = library.filter.selectedColors.contains(label)
+                        let selected = snap.filter.selectedColors.contains(label)
                         Button {
                             toggleSet(\.selectedColors, label)
                         } label: {
                             ColorDot(label: label, isSelected: selected, size: 16)
                         }
                         .buttonStyle(.plain)
-                        .help(library.colorNames.name(for: label))
+                        .help(snap.colorNames.name(for: label))
                     }
                 }
             }
@@ -410,7 +405,7 @@ struct FilterPanelView: View {
                         FilterChip(
                             title: status.title,
                             systemImage: status.systemImage,
-                            selected: library.filter.selectedPicks.contains(status)
+                            selected: snap.filter.selectedPicks.contains(status)
                         ) {
                             toggleSet(\.selectedPicks, status)
                         }
@@ -418,6 +413,13 @@ struct FilterPanelView: View {
                 }
             }
         }
+    }
+
+    private func rangeBinding(_ keyPath: WritableKeyPath<FilterState, ClosedRange<Double>?>) -> Binding<ClosedRange<Double>?> {
+        Binding(
+            get: { library.filter[keyPath: keyPath] },
+            set: { library.filter[keyPath: keyPath] = $0 }
+        )
     }
 
     private func toggleSet<T: Hashable>(_ keyPath: WritableKeyPath<FilterState, Set<T>>, _ value: T) {
@@ -428,5 +430,32 @@ struct FilterPanelView: View {
             next[keyPath: keyPath].insert(value)
         }
         library.filter = next
+    }
+}
+
+/// Footer only. Listens to the search box so Clear enables while typing, without rebuilding facets.
+private struct FilterStatusBar: View {
+    let library: PhotoLibrary
+    @ObservedObject var searchBox: SearchBox
+    let snap: LibraryFilters.Snapshot
+
+    var body: some View {
+        let searchActive = !searchBox.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let active = snap.filter.isActive || searchActive
+        HStack {
+            Text(active
+                 ? tr("%@ shown", snap.visibleCount)
+                 : tr("%@ photos", snap.photoCount))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button(tr("Clear")) {
+                library.clearFilters()
+            }
+            .disabled(!active)
+            .controlSize(.small)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 }

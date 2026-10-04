@@ -11,7 +11,7 @@ struct SettingsView: View {
             content
                 .padding(24)
         }
-        .frame(width: 660, height: 680)
+        .frame(width: 660, height: 560)
         .preferredColorScheme(library.skin.colorScheme)
         .tint(library.skin.palette.accent)
     }
@@ -82,40 +82,11 @@ struct SettingsView: View {
                 }
             }
 
-            Divider()
-
-            Text(tr("Color Labels"))
-                .font(.headline)
-            Text(tr("Meanings are yours. PhotoFlow only stores the color."))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            ForEach(ColorLabel.assigned) { label in
-                HStack(spacing: 12) {
-                    ColorDot(label: label, size: 14)
-                    Text(label.defaultName)
-                        .frame(width: 70, alignment: .leading)
-                    TextField(label.defaultName, text: nameBinding(label))
-                        .textFieldStyle(.roundedBorder)
-                }
-            }
-
-            Text(tr("Suggested examples: Reject, Maybe, Selected, Published, Personal"))
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-
             HStack {
                 Spacer()
                 Button(tr("Done")) { dismiss() }
                     .keyboardShortcut(.defaultAction)
             }
         }
-    }
-
-    private func nameBinding(_ label: ColorLabel) -> Binding<String> {
-        Binding(
-            get: { library.colorNames.name(for: label) },
-            set: { library.colorNames.setName($0, for: label) }
-        )
     }
 }

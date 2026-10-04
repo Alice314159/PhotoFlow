@@ -38,6 +38,87 @@ final class BackgroundProgress: ObservableObject {
     @Published var placeLookupDone = 0
 }
 
+/// Export / copy toasts. Kept off `PhotoLibrary` so a flash or spinner does not rebuild the grid.
+@MainActor
+final class LibraryActivity: ObservableObject {
+    @Published var isExporting = false
+    @Published var exportNote: String?
+    @Published var copyNote: String?
+}
+
+/// What the grid, filmstrip, and loupe actually draw. Chrome can publish without invalidating these views.
+@MainActor
+final class LibraryBrowser: ObservableObject {
+    @Published var filteredPhotos: [PhotoItem] = []
+    @Published var selectedID: String?
+    @Published var checkedIDs: Set<String> = []
+    @Published var gridThumbnailSize: Double = 170
+    @Published var viewMode: LibraryViewMode = .loupe
+    @Published var skin: AppSkin = .midnight
+    @Published var targetPaths: Set<String> = []
+    @Published var isLoading = false
+    @Published var scanProgress = ""
+    @Published var showInfoBar = true
+    @Published var zoomCommand: ZoomCommand?
+
+    func isInTarget(_ photo: PhotoItem) -> Bool {
+        targetPaths.contains(photo.filePath)
+    }
+}
+
+/// Search field text. Typing here must not publish `PhotoLibrary` on every key.
+@MainActor
+final class SearchBox: ObservableObject {
+    @Published var text = ""
+}
+
+/// Sidebar lists: Smart albums, collections, Auto Groups, Places. Search text is not included.
+@MainActor
+final class LibraryLists: ObservableObject {
+    struct Snapshot: Equatable {
+        var folderName: String?
+        var folderPath: String?
+        var activeCollectionID: Int64?
+        var collections: [PhotoCollection] = []
+        var targetCollectionID: Int64?
+        var markCounts = MarkCounts()
+        var photoCount = 0
+        var categoryCounts: [PhotoCategory: Int] = [:]
+        var placeCounts: [FacetCount] = []
+        var smartAlbum: SmartAlbum = .all
+        var selectedCategories: Set<PhotoCategory> = []
+        var selectedPlaces: Set<String> = []
+        var colorNames = ColorLabelNames()
+        var isLoading = false
+        var scanProgress = ""
+        var analysisTotal = 0
+        var placeLookupTotal = 0
+        var collapsed: Set<String> = []
+        var skin: AppSkin = .midnight
+    }
+
+    @Published var snapshot = Snapshot()
+}
+
+/// Filter / inspector chrome. Search text is omitted so typing does not rebuild facets.
+@MainActor
+final class LibraryFilters: ObservableObject {
+    struct Snapshot: Equatable {
+        var filter = FilterState()
+        var cameraFacets: [CameraFacet] = []
+        var lensFacets: [FacetCount] = []
+        var kindFacets: [FacetCount] = []
+        var bounds = FilterBounds()
+        var colorNames = ColorLabelNames()
+        var skin: AppSkin = .midnight
+        var photoCount = 0
+        var visibleCount = 0
+        var inspectorTab: InspectorTab = .filter
+    }
+
+    @Published var snapshot = Snapshot()
+}
+
 @MainActor
 final class PhotoLibrary: ObservableObject {
     @Published var photos: [PhotoItem] = [] {
@@ -45,34 +126,75 @@ final class PhotoLibrary: ObservableObject {
             if let changed = markOnlyChange {
                 markOnlyChange = nil
                 refreshAfterMarks(changed)
+            } else if let changed = contentOnlyChange {
+                contentOnlyChange = nil
+                refreshAfterContent(changed)
+            } else if deferFacetRebuild {
+                rebuildPhotoIndex()
+                rebuildVisible()
             } else {
                 rebuildIndexes()
             }
+            syncLists()
+            syncFilters()
         }
     }
-    @Published private(set) var markCounts = MarkCounts()
+    @Published private(set) var markCounts = MarkCounts() {
+        didSet { syncLists() }
+    }
     @Published var selectedID: String? {
         didSet {
             if let selectedID, let position = visibleIndex[selectedID] { lastVisiblePosition = position }
             if selectedID != oldValue { prefetchNeighbors() }
+            syncBrowser()
         }
     }
-    @Published var folderURL: URL?
+    @Published var folderURL: URL? {
+        didSet { syncLists() }
+    }
     @Published var filter = FilterState() {
         didSet {
-            rebuildVisible()
-            revealSelection()
+            if filter.differsOnlyInSearch(from: oldValue) {
+                scheduleSearchRebuild()
+            } else {
+                searchRebuildTask?.cancel()
+                rebuildVisible()
+                revealSelection()
+                syncLists()
+                syncFilters()
+            }
         }
     }
-    @Published var bounds = FilterBounds()
-    @Published var viewMode: LibraryViewMode = .loupe
+    @Published var bounds = FilterBounds() {
+        didSet { syncFilters() }
+    }
+    @Published var viewMode: LibraryViewMode = .loupe {
+        didSet { syncBrowser() }
+    }
     @Published var sort: PhotoSort = .filename {
         didSet { rebuildVisible() }
     }
-    @Published private(set) var filteredPhotos: [PhotoItem] = []
-    @Published var inspectorTab: InspectorTab = .filter
-    @Published var isLoading = false
-    @Published var scanProgress = ""
+    @Published private(set) var filteredPhotos: [PhotoItem] = [] {
+        didSet {
+            syncBrowser()
+            syncFilters()
+        }
+    }
+    @Published var inspectorTab: InspectorTab = .filter {
+        didSet { syncFilters() }
+    }
+    @Published var isLoading = false {
+        didSet {
+            syncBrowser()
+            syncLists()
+        }
+    }
+    @Published var scanProgress = "" {
+        didSet {
+            syncBrowser()
+            syncLists()
+        }
+    }
     @Published var showSidebar = true {
         didSet { persistPanels() }
     }
@@ -83,9 +205,11 @@ final class PhotoLibrary: ObservableObject {
         didSet { persistPanels() }
     }
     @Published var showInfoBar = true {
-        didSet { persistPanels() }
+        didSet {
+            persistPanels()
+            syncBrowser()
+        }
     }
-    @Published var isExporting = false
     @Published var exportSettings = ExportSettings() {
         didSet {
             if let data = try? JSONEncoder().encode(exportSettings) {
@@ -93,20 +217,29 @@ final class PhotoLibrary: ObservableObject {
             }
         }
     }
-    @Published var copyNote: String?
     @Published var showSettings = false
     @Published var showExportSheet = false
     @Published var showRenameSheet = false
-    @Published var checkedIDs: Set<String> = []
-    @Published var exportNote: String?
+    @Published var checkedIDs: Set<String> = [] {
+        didSet { syncBrowser() }
+    }
     @Published var autoAdvanceOnPick = true {
         didSet { UserDefaults.standard.set(autoAdvanceOnPick, forKey: Preferences.Key.autoAdvanceOnPick) }
     }
     @Published var colorNames = ColorLabelNames() {
-        didSet { persistColorNames() }
+        didSet {
+            persistColorNames()
+            syncLists()
+            syncFilters()
+        }
     }
     @Published var skin: AppSkin = .midnight {
-        didSet { UserDefaults.standard.set(skin.rawValue, forKey: Preferences.Key.skin) }
+        didSet {
+            UserDefaults.standard.set(skin.rawValue, forKey: Preferences.Key.skin)
+            syncBrowser()
+            syncLists()
+            syncFilters()
+        }
     }
     @Published var showTopBar = true {
         didSet {
@@ -114,7 +247,10 @@ final class PhotoLibrary: ObservableObject {
         }
     }
     @Published var gridThumbnailSize: Double = 170 {
-        didSet { UserDefaults.standard.set(gridThumbnailSize, forKey: Preferences.Key.gridThumbnailSize) }
+        didSet {
+            schedulePersistGridSize()
+            syncBrowser()
+        }
     }
     @Published var showShortcuts = false
     @Published var language: AppLanguage = L10n.language {
@@ -124,14 +260,23 @@ final class PhotoLibrary: ObservableObject {
         }
     }
     @Published var collapsedSidebarSections = Set(UserDefaults.standard.stringArray(forKey: Preferences.Key.collapsedSidebarSections) ?? []) {
-        didSet { UserDefaults.standard.set(Array(collapsedSidebarSections), forKey: Preferences.Key.collapsedSidebarSections) }
+        didSet {
+            UserDefaults.standard.set(Array(collapsedSidebarSections), forKey: Preferences.Key.collapsedSidebarSections)
+            syncLists()
+        }
     }
     @Published var autoAnalyze = true {
         didSet { UserDefaults.standard.set(autoAnalyze, forKey: Preferences.Key.autoAnalyze) }
     }
-    @Published var analysisTotal = 0
-    @Published private(set) var categoryCounts: [PhotoCategory: Int] = [:]
-    @Published private(set) var placeCounts: [FacetCount] = []
+    @Published var analysisTotal = 0 {
+        didSet { syncLists() }
+    }
+    @Published private(set) var categoryCounts: [PhotoCategory: Int] = [:] {
+        didSet { syncLists() }
+    }
+    @Published private(set) var placeCounts: [FacetCount] = [] {
+        didSet { syncLists() }
+    }
     @Published var lookUpPlaces = true {
         didSet {
             UserDefaults.standard.set(lookUpPlaces, forKey: Preferences.Key.lookUpPlaces)
@@ -140,6 +285,25 @@ final class PhotoLibrary: ObservableObject {
     }
     /// Counters that tick often live outside the library so only the progress rows redraw.
     let progress = BackgroundProgress()
+    let activity = LibraryActivity()
+    let browser = LibraryBrowser()
+    let searchBox = SearchBox()
+    let lists = LibraryLists()
+    let filters = LibraryFilters()
+    /// Paths in the B-key target collection; grid cells read this instead of scanning `collections`.
+    private(set) var targetCollectionPaths: Set<String> = []
+    var isExporting: Bool {
+        get { activity.isExporting }
+        set { activity.isExporting = newValue }
+    }
+    var exportNote: String? {
+        get { activity.exportNote }
+        set { activity.exportNote = newValue }
+    }
+    var copyNote: String? {
+        get { activity.copyNote }
+        set { activity.copyNote = newValue }
+    }
     var analysisDone: Int {
         get { progress.analysisDone }
         set { progress.analysisDone = newValue }
@@ -148,9 +312,15 @@ final class PhotoLibrary: ObservableObject {
         get { progress.placeLookupDone }
         set { progress.placeLookupDone = newValue }
     }
-    @Published var placeLookupTotal = 0
-    @Published var collections: [PhotoCollection] = []
-    @Published var activeCollectionID: Int64?
+    @Published var placeLookupTotal = 0 {
+        didSet { syncLists() }
+    }
+    @Published var collections: [PhotoCollection] = [] {
+        didSet { syncLists() }
+    }
+    @Published var activeCollectionID: Int64? {
+        didSet { syncLists() }
+    }
     @Published var targetCollectionID: Int64? {
         didSet {
             if let targetCollectionID {
@@ -158,16 +328,18 @@ final class PhotoLibrary: ObservableObject {
             } else {
                 UserDefaults.standard.removeObject(forKey: Preferences.Key.targetCollectionID)
             }
+            refreshTargetPaths()
+            syncLists()
         }
     }
     @Published var isPresenting = false
-    @Published var zoomCommand: ZoomCommand?
 
     static let gridSizeRange: ClosedRange<Double> = 110...360
 
     let scanner = FolderScanner()
     let database = PhotoDatabase.shared
     var folderAccess: URL?
+    var extraFolderAccess: [URL] = []
     var loadTask: Task<Void, Never>?
     var analysisTask: Task<Void, Never>?
     var locationTask: Task<Void, Never>?
@@ -181,8 +353,14 @@ final class PhotoLibrary: ObservableObject {
     private var prefetchTask: Task<Void, Never>?
     /// IDs whose ratings, colors, or flags are the only thing changing in the next `photos` assignment.
     var markOnlyChange: [String]?
-    var undoStack: [[PhotoItem]] = []
-    var redoStack: [[PhotoItem]] = []
+    /// Analysis or GPS text changed; camera facets can stay.
+    var contentOnlyChange: [String]?
+    var gridSizePersistTask: Task<Void, Never>?
+    /// Incremental folder load: keep the grid updating, skip expensive facet passes until the end.
+    var deferFacetRebuild = false
+    var searchRebuildTask: Task<Void, Never>?
+    var undoStack: [[MarkDelta]] = []
+    var redoStack: [[MarkDelta]] = []
     var presentationSnapshot: (panels: [Bool], topBar: Bool, mode: LibraryViewMode, wasFullScreen: Bool)?
     var keyMonitor: Any?
     var windowObserver: NSObjectProtocol?
@@ -248,7 +426,13 @@ final class PhotoLibrary: ObservableObject {
         }
         installKeyMonitor()
         observeAppActivation()
+        if !database.isAvailable {
+            exportNote = tr("Couldn’t open PhotoFlow’s database. Marks won’t be saved until the app can write to Application Support.")
+        }
         restoreLastFolder()
+        syncBrowser()
+        syncLists()
+        syncFilters()
     }
 
     func select(_ photo: PhotoItem) {
@@ -363,32 +547,53 @@ final class PhotoLibrary: ObservableObject {
         revealSelection()
     }
 
-    private func rebuildIndexes() {
+    private func rebuildPhotoIndex() {
         var map: [String: Int] = [:]
         map.reserveCapacity(photos.count)
         for (index, photo) in photos.enumerated() {
             map[photo.id] = index
         }
         photoIndex = map
+    }
+
+    private func rebuildIndexes() {
+        rebuildPhotoIndex()
         let facets = CameraFacet.build(from: photos)
         if facets.cameras != cameraFacets { cameraFacets = facets.cameras }
         if facets.lenses != lensFacets { lensFacets = facets.lenses }
         if facets.kinds != kindFacets { kindFacets = facets.kinds }
-        var counts: [PhotoCategory: Int] = [:]
-        for photo in photos {
-            for category in photo.categories { counts[category, default: 0] += 1 }
-        }
-        if counts != categoryCounts { categoryCounts = counts }
-        var places: [String: Int] = [:]
-        for photo in photos {
-            if let place = photo.placeName { places[place, default: 0] += 1 }
-        }
-        let placeFacets = places.map { FacetCount(name: $0.key, count: $0.value) }
-            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
-        if placeFacets != placeCounts { placeCounts = placeFacets }
+        rebuildContentFacets()
         let marks = MarkCounts(photos)
         if marks != markCounts { markCounts = marks }
         rebuildVisible()
+    }
+
+    private func rebuildContentFacets() {
+        var counts: [PhotoCategory: Int] = [:]
+        var places: [String: Int] = [:]
+        for photo in photos {
+            for category in photo.categories { counts[category, default: 0] += 1 }
+            if let place = photo.placeName { places[place, default: 0] += 1 }
+        }
+        if counts != categoryCounts { categoryCounts = counts }
+        let placeFacets = places.map { FacetCount(name: $0.key, count: $0.value) }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
+        if placeFacets != placeCounts { placeCounts = placeFacets }
+    }
+
+    private func scheduleSearchRebuild() {
+        searchRebuildTask?.cancel()
+        if filter.searchText.isEmpty {
+            rebuildVisible()
+            revealSelection()
+            return
+        }
+        searchRebuildTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(180))
+            guard let self, !Task.isCancelled else { return }
+            self.rebuildVisible()
+            self.revealSelection()
+        }
     }
 
     /// Marks don't affect camera, lens, group, or place facets, so only the counts and,
@@ -404,6 +609,126 @@ final class PhotoLibrary: ObservableObject {
         for id in ids {
             if let position = visibleIndex[id], let index = photoIndex[id] {
                 visible[position] = photos[index]
+            }
+        }
+        filteredPhotos = visible
+    }
+
+    /// Analysis and GPS names don't change camera facets; only group/place counts and, when
+    /// search or those filters are on, the visible list.
+    private func refreshAfterContent(_ ids: [String]) {
+        rebuildContentFacets()
+        if filter.dependsOnContent {
+            rebuildVisible()
+            return
+        }
+        var visible = filteredPhotos
+        for id in ids {
+            if let position = visibleIndex[id], let index = photoIndex[id] {
+                visible[position] = photos[index]
+            }
+        }
+        filteredPhotos = visible
+    }
+
+    func setSearchText(_ text: String) {
+        if filter.searchText != text {
+            filter.searchText = text
+        }
+        if searchBox.text != text {
+            searchBox.text = text
+        }
+    }
+
+    func refreshTargetPaths() {
+        let next = targetCollection?.paths ?? []
+        if next != targetCollectionPaths {
+            targetCollectionPaths = next
+            syncBrowser()
+        }
+    }
+
+    private func schedulePersistGridSize() {
+        gridSizePersistTask?.cancel()
+        gridSizePersistTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(280))
+            guard let self, !Task.isCancelled else { return }
+            UserDefaults.standard.set(self.gridThumbnailSize, forKey: Preferences.Key.gridThumbnailSize)
+        }
+    }
+
+    private func syncBrowser() {
+        let surface = browser
+        if surface.selectedID != selectedID { surface.selectedID = selectedID }
+        if surface.checkedIDs != checkedIDs { surface.checkedIDs = checkedIDs }
+        if surface.gridThumbnailSize != gridThumbnailSize { surface.gridThumbnailSize = gridThumbnailSize }
+        if surface.viewMode != viewMode { surface.viewMode = viewMode }
+        if surface.skin != skin { surface.skin = skin }
+        if surface.targetPaths != targetCollectionPaths { surface.targetPaths = targetCollectionPaths }
+        if surface.isLoading != isLoading { surface.isLoading = isLoading }
+        if surface.scanProgress != scanProgress { surface.scanProgress = scanProgress }
+        if surface.showInfoBar != showInfoBar { surface.showInfoBar = showInfoBar }
+        if !surface.filteredPhotos.elementsEqual(filteredPhotos, by: {
+            $0.id == $1.id
+                && $0.rating == $1.rating
+                && $0.colorLabel == $1.colorLabel
+                && $0.pickStatus == $1.pickStatus
+                && $0.availability == $1.availability
+        }) {
+            surface.filteredPhotos = filteredPhotos
+        }
+    }
+
+    private func syncLists() {
+        let next = LibraryLists.Snapshot(
+            folderName: folderURL?.lastPathComponent,
+            folderPath: folderURL?.path,
+            activeCollectionID: activeCollectionID,
+            collections: collections,
+            targetCollectionID: targetCollectionID,
+            markCounts: markCounts,
+            photoCount: photos.count,
+            categoryCounts: categoryCounts,
+            placeCounts: placeCounts,
+            smartAlbum: filter.smartAlbum,
+            selectedCategories: filter.selectedCategories,
+            selectedPlaces: filter.selectedPlaces,
+            colorNames: colorNames,
+            isLoading: isLoading,
+            scanProgress: scanProgress,
+            analysisTotal: analysisTotal,
+            placeLookupTotal: placeLookupTotal,
+            collapsed: collapsedSidebarSections,
+            skin: skin
+        )
+        if lists.snapshot != next {
+            lists.snapshot = next
+        }
+    }
+
+    private func syncFilters() {
+        let next = LibraryFilters.Snapshot(
+            filter: filter.erasingSearch(),
+            cameraFacets: cameraFacets,
+            lensFacets: lensFacets,
+            kindFacets: kindFacets,
+            bounds: bounds,
+            colorNames: colorNames,
+            skin: skin,
+            photoCount: photos.count,
+            visibleCount: filteredPhotos.count,
+            inspectorTab: inspectorTab
+        )
+        if filters.snapshot != next {
+            filters.snapshot = next
+        }
+    }
+
+    private func patchVisiblePhotos() {
+        var visible = filteredPhotos
+        for index in visible.indices {
+            if let photo = photoIndex[visible[index].id].map({ photos[$0] }) {
+                visible[index] = photo
             }
         }
         filteredPhotos = visible
@@ -529,5 +854,17 @@ final class PhotoLibrary: ObservableObject {
     func stopAccessingFolder() {
         folderAccess?.stopAccessingSecurityScopedResource()
         folderAccess = nil
+        for url in extraFolderAccess {
+            url.stopAccessingSecurityScopedResource()
+        }
+        extraFolderAccess = []
+    }
+
+    func rememberFolderAccess(_ url: URL) {
+        FolderAccessStore.remember(url)
+    }
+
+    func startStoredFolderAccess() {
+        extraFolderAccess = FolderAccessStore.beginAccess()
     }
 }
